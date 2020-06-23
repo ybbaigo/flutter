@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -89,7 +91,7 @@ void main() {
     );
   });
 
-  test('ContainerLayer.findAllAnnotations returns children\'s opacity (true)', () {
+  test("ContainerLayer.findAllAnnotations returns children's opacity (true)", () {
     final Layer root = _withBackgroundAnnotation(1000,
       _Layers(
         ContainerLayer(),
@@ -107,7 +109,7 @@ void main() {
     );
   });
 
-  test('ContainerLayer.findAllAnnotations returns children\'s opacity (false)', () {
+  test("ContainerLayer.findAllAnnotations returns children's opacity (false)", () {
     final Layer root = _withBackgroundAnnotation(1000,
       _Layers(
         ContainerLayer(),
@@ -574,7 +576,7 @@ void main() {
   });
 
   test('AnnotatedRegionLayer.findAllAnnotations should still check children and return '
-    'children\'s opacity (false) during a failed hit', () {
+    "children's opacity (false) during a failed hit", () {
     const Offset position = Offset(5, 5);
 
     final Layer root = _withBackgroundAnnotation(1000,
@@ -596,7 +598,7 @@ void main() {
   });
 
   test('AnnotatedRegionLayer.findAllAnnotations should still check children and return '
-    'children\'s opacity (true) during a failed hit', () {
+    "children's opacity (true) during a failed hit", () {
     const Offset position = Offset(5, 5);
 
     final Layer root = _withBackgroundAnnotation(1000,
@@ -616,7 +618,7 @@ void main() {
     );
   });
 
-  test('AnnotatedRegionLayer.findAllAnnotations should not add to children\'s opacity '
+  test("AnnotatedRegionLayer.findAllAnnotations should not add to children's opacity "
     'during a successful hit if it is not opaque', () {
     const Offset position = Offset(5, 5);
 
@@ -639,7 +641,7 @@ void main() {
     );
   });
 
-  test('AnnotatedRegionLayer.findAllAnnotations should add to children\'s opacity '
+  test("AnnotatedRegionLayer.findAllAnnotations should add to children's opacity "
     'during a successful hit if it is opaque', () {
     const Offset position = Offset(5, 5);
 
@@ -690,7 +692,7 @@ void main() {
       root.findAllAnnotations<int>(position).entries.toList(),
       _equalToAnnotationResult<int>(<AnnotationEntry<int>>[
         const AnnotationEntry<int>(annotation: 2, localPosition: position),
-        const AnnotationEntry<int>(annotation: 1, localPosition: position),
+        const AnnotationEntry<int>(annotation: 1, localPosition: Offset(10, 10)),
         const AnnotationEntry<int>(annotation: 1000, localPosition: position),
       ]),
     );

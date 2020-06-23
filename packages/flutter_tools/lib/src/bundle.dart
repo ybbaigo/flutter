@@ -4,6 +4,8 @@
 
 import 'dart:async';
 
+import 'package:convert/convert.dart';
+import 'package:crypto/crypto.dart';
 import 'package:meta/meta.dart';
 import 'package:pool/pool.dart';
 
@@ -14,8 +16,10 @@ import 'base/logger.dart';
 import 'build_info.dart';
 import 'build_system/build_system.dart';
 import 'build_system/depfile.dart';
-import 'build_system/targets/dart.dart';
+import 'build_system/targets/common.dart';
+import 'build_system/targets/icon_tree_shaker.dart';
 import 'cache.dart';
+import 'convert.dart';
 import 'dart/package_map.dart';
 import 'devfs.dart';
 import 'globals.dart' as globals;
@@ -29,6 +33,24 @@ String get defaultDepfilePath => globals.fs.path.join(getBuildDirectory(), 'snap
 String getDefaultApplicationKernelPath({ @required bool trackWidgetCreation }) {
   return getKernelPathForTransformerOptions(
     globals.fs.path.join(getBuildDirectory(), 'app.dill'),
+    trackWidgetCreation: trackWidgetCreation,
+  );
+}
+
+String getDefaultCachedKernelPath({
+  @required bool trackWidgetCreation,
+  @required List<String> dartDefines,
+}) {
+  final StringBuffer buffer = StringBuffer();
+  buffer.writeAll(dartDefines);
+  String buildPrefix = '';
+  if (buffer.isNotEmpty) {
+    final String output = buffer.toString();
+    final Digest digest = md5.convert(utf8.encode(output));
+    buildPrefix = '${hex.encode(digest.bytes)}.';
+  }
+  return getKernelPathForTransformerOptions(
+    globals.fs.path.join(getBuildDirectory(), '${buildPrefix}cache.dill'),
     trackWidgetCreation: trackWidgetCreation,
   );
 }
@@ -53,7 +75,7 @@ class BundleBuilder {
   /// The default  `manifestPath` is `pubspec.yaml`
   Future<void> build({
     @required TargetPlatform platform,
-    BuildMode buildMode,
+    BuildInfo buildInfo,
     String mainPath,
     String manifestPath = defaultManifestPath,
     String applicationKernelFilePath,
@@ -68,14 +90,15 @@ class BundleBuilder {
     List<String> extraGenSnapshotOptions = const <String>[],
     List<String> fileSystemRoots,
     String fileSystemScheme,
+    @required bool treeShakeIcons,
   }) async {
     mainPath ??= defaultMainPath;
     depfilePath ??= defaultDepfilePath;
     assetDirPath ??= getAssetBuildDirectory();
-    packagesPath ??= globals.fs.path.absolute(PackageMap.globalPackagesPath);
+    packagesPath ??= globals.fs.path.absolute(globalPackagesPath);
     final FlutterProject flutterProject = FlutterProject.current();
     await buildWithAssemble(
-      buildMode: buildMode ?? BuildMode.debug,
+      buildMode: buildInfo.mode,
       targetPlatform: platform,
       mainPath: mainPath,
       flutterProject: flutterProject,
@@ -83,6 +106,8 @@ class BundleBuilder {
       depfilePath: depfilePath,
       precompiled: precompiledSnapshot,
       trackWidgetCreation: trackWidgetCreation,
+      treeShakeIcons: treeShakeIcons,
+      dartDefines: buildInfo.dartDefines,
     );
     // Work around for flutter_tester placing kernel artifacts in odd places.
     if (applicationKernelFilePath != null) {
@@ -107,6 +132,8 @@ Future<void> buildWithAssemble({
   @required String depfilePath,
   @required bool precompiled,
   bool trackWidgetCreation,
+  @required bool treeShakeIcons,
+  List<String> dartDefines,
 }) async {
   // If the precompiled flag was not passed, force us into debug mode.
   buildMode = precompiled ? buildMode : BuildMode.debug;
@@ -116,17 +143,27 @@ Future<void> buildWithAssemble({
     buildDir: flutterProject.dartTool.childDirectory('flutter_build'),
     cacheDir: globals.cache.getRoot(),
     flutterRootDir: globals.fs.directory(Cache.flutterRoot),
+    engineVersion: globals.artifacts.isLocalEngine
+      ? null
+      : globals.flutterVersion.engineRevision,
     defines: <String, String>{
       kTargetFile: mainPath,
       kBuildMode: getNameForBuildMode(buildMode),
       kTargetPlatform: getNameForTargetPlatform(targetPlatform),
       kTrackWidgetCreation: trackWidgetCreation?.toString(),
+      kIconTreeShakerFlag: treeShakeIcons ? 'true' : null,
+      if (dartDefines != null && dartDefines.isNotEmpty)
+        kDartDefines: encodeDartDefines(dartDefines),
     },
+    artifacts: globals.artifacts,
+    fileSystem: globals.fs,
+    logger: globals.logger,
+    processManager: globals.processManager,
   );
   final Target target = buildMode == BuildMode.debug
     ? const CopyFlutterBundle()
     : const ReleaseCopyFlutterBundle();
-  final BuildResult result = await buildSystem.build(target, environment);
+  final BuildResult result = await globals.buildSystem.build(target, environment);
 
   if (!result.success) {
     for (final ExceptionMeasurement measurement in result.exceptions.values) {
@@ -144,7 +181,11 @@ Future<void> buildWithAssemble({
     if (!outputDepfile.parent.existsSync()) {
       outputDepfile.parent.createSync(recursive: true);
     }
-    depfile.writeToFile(outputDepfile);
+    final DepfileService depfileService = DepfileService(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+    );
+    depfileService.writeToFile(depfile, outputDepfile);
   }
 }
 
@@ -156,7 +197,7 @@ Future<AssetBundle> buildAssets({
   bool reportLicensedPackages = false,
 }) async {
   assetDirPath ??= getAssetBuildDirectory();
-  packagesPath ??= globals.fs.path.absolute(PackageMap.globalPackagesPath);
+  packagesPath ??= globals.fs.path.absolute(globalPackagesPath);
 
   // Build the asset bundle.
   final AssetBundle assetBundle = AssetBundleFactory.instance.createBundle();

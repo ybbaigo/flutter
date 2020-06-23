@@ -7,11 +7,14 @@ import 'dart:async';
 import 'package:flutter_driver/flutter_driver.dart';
 import 'package:test/test.dart' hide TypeMatcher, isInstanceOf;
 
+import 'package:macrobenchmarks/common.dart';
+
 void macroPerfTest(
     String testName,
     String routeName,
     { Duration pageDelay,
       Duration duration = const Duration(seconds: 3),
+      Duration timeout = const Duration(seconds: 30),
       Future<void> driverOps(FlutterDriver driver),
       Future<void> setupOps(FlutterDriver driver),
     }) {
@@ -26,8 +29,11 @@ void macroPerfTest(
 
     await driver.forceGC();
 
+    final SerializableFinder scrollable = find.byValueKey(kScrollableName);
+    expect(scrollable, isNotNull);
     final SerializableFinder button = find.byValueKey(routeName);
     expect(button, isNotNull);
+    await driver.scrollUntilVisible(scrollable, button, dyScroll: -50.0);
     await driver.tap(button);
 
     if (pageDelay != null) {
@@ -52,5 +58,5 @@ void macroPerfTest(
     summary.writeTimelineToFile(testName, pretty: true);
 
     driver.close();
-  });
+  }, timeout: Timeout(timeout));
 }

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -157,7 +159,7 @@ class FakeAndroidPlatformViewsController {
     if (resizeCompleter != null) {
       await resizeCompleter.future;
     }
-    _views[id].size = Size(width, height);
+    _views[id] = _views[id].copyWith(size: Size(width, height));
 
     return Future<dynamic>.sync(() => null);
   }
@@ -195,7 +197,7 @@ class FakeAndroidPlatformViewsController {
         message: 'Trying to resize a platform view with unknown id: $id',
       );
 
-    _views[id].layoutDirection = layoutDirection;
+    _views[id] = _views[id].copyWith(layoutDirection: layoutDirection);
 
     return Future<dynamic>.sync(() => null);
   }
@@ -377,14 +379,23 @@ class FakeHtmlPlatformViewsController {
   }
 }
 
+@immutable
 class FakeAndroidPlatformView {
-  FakeAndroidPlatformView(this.id, this.type, this.size, this.layoutDirection, [this.creationParams]);
+  const FakeAndroidPlatformView(this.id, this.type, this.size, this.layoutDirection, [this.creationParams]);
 
   final int id;
   final String type;
   final Uint8List creationParams;
-  Size size;
-  int layoutDirection;
+  final Size size;
+  final int layoutDirection;
+
+  FakeAndroidPlatformView copyWith({Size size, int layoutDirection}) => FakeAndroidPlatformView(
+    id,
+    type,
+    size ?? this.size,
+    layoutDirection ?? this.layoutDirection,
+    creationParams,
+  );
 
   @override
   bool operator ==(Object other) {
@@ -393,12 +404,13 @@ class FakeAndroidPlatformView {
     return other is FakeAndroidPlatformView
         && other.id == id
         && other.type == type
-        && other.creationParams == creationParams
-        && other.size == size;
+        && listEquals<int>(other.creationParams, creationParams)
+        && other.size == size
+        && other.layoutDirection == layoutDirection;
   }
 
   @override
-  int get hashCode => hashValues(id, type, size, layoutDirection);
+  int get hashCode => hashValues(id, type, hashList(creationParams), size, layoutDirection);
 
   @override
   String toString() {
@@ -406,6 +418,7 @@ class FakeAndroidPlatformView {
   }
 }
 
+@immutable
 class FakeAndroidMotionEvent {
   const FakeAndroidMotionEvent(this.action, this.pointerIds, this.pointers);
 
@@ -431,8 +444,9 @@ class FakeAndroidMotionEvent {
   }
 }
 
+@immutable
 class FakeUiKitView {
-  FakeUiKitView(this.id, this.type, [this.creationParams]);
+  const FakeUiKitView(this.id, this.type, [this.creationParams]);
 
   final int id;
   final String type;
@@ -457,8 +471,9 @@ class FakeUiKitView {
   }
 }
 
+@immutable
 class FakeHtmlPlatformView {
-  FakeHtmlPlatformView(this.id, this.type);
+  const FakeHtmlPlatformView(this.id, this.type);
 
   final int id;
   final String type;

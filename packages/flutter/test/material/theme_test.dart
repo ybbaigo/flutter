@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -747,7 +749,7 @@ class _TextStyleProxy implements TextStyle {
   List<ui.FontFeature> get fontFeatures => _delegate.fontFeatures;
 
   @override
-  String toString({ DiagnosticLevel minLevel = DiagnosticLevel.debug }) =>
+  String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) =>
       super.toString();
 
   @override
@@ -774,12 +776,17 @@ class _TextStyleProxy implements TextStyle {
     double fontSizeFactor = 1.0,
     double fontSizeDelta = 0.0,
     int fontWeightDelta = 0,
+    FontStyle fontStyle,
     double letterSpacingFactor = 1.0,
     double letterSpacingDelta = 0.0,
     double wordSpacingFactor = 1.0,
     double wordSpacingDelta = 0.0,
     double heightFactor = 1.0,
     double heightDelta = 0.0,
+    TextBaseline textBaseline,
+    Locale locale,
+    List<ui.Shadow> shadows,
+    List<ui.FontFeature> fontFeatures,
   }) {
     throw UnimplementedError();
   }
@@ -829,6 +836,7 @@ class _TextStyleProxy implements TextStyle {
     double textScaleFactor = 1.0,
     String ellipsis,
     int maxLines,
+    ui.TextHeightBehavior textHeightBehavior,
     Locale locale,
     String fontFamily,
     double fontSize,

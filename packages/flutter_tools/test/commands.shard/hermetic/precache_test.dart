@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter_tools/src/base/platform.dart';
 import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/commands/precache.dart';
 import 'package:flutter_tools/src/features.dart';
@@ -23,7 +24,7 @@ void main() {
   setUp(() {
     cache = MockCache();
     // Release lock between test cases.
-    Cache.releaseLockEarly();
+    Cache.releaseLock();
 
     when(cache.isUpToDate()).thenReturn(false);
     when(cache.updateAll(any)).thenAnswer((Invocation invocation) {
@@ -34,6 +35,37 @@ void main() {
     when(flutterVersion.isMaster).thenReturn(false);
     masterFlutterVersion = MockFlutterVersion();
     when(masterFlutterVersion.isMaster).thenReturn(true);
+  });
+
+  testUsingContext('precache should acquire lock', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache']);
+
+    expect(Cache.isLocked(), isTrue);
+    // Do not throw StateError, lock is acquired.
+    Cache.checkLockAcquired();
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+  });
+
+  testUsingContext('precache should not re-entrantly acquire lock', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache']);
+
+    expect(Cache.isLocked(), isFalse);
+    // Do not throw StateError, acquired reentrantly with FLUTTER_ALREADY_LOCKED.
+    Cache.checkLockAcquired();
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    Platform: () => FakePlatform(
+      operatingSystem: 'windows',
+      environment: <String, String>{
+        'FLUTTER_ROOT': 'flutter',
+        'FLUTTER_ALREADY_LOCKED': 'true',
+      },
+    ),
   });
 
   testUsingContext('precache downloads web artifacts on dev branch when feature is enabled.', () async {
@@ -61,6 +93,87 @@ void main() {
   }, overrides: <Type, Generator>{
     Cache: () => cache,
     FeatureFlags: () => TestFeatureFlags(isWebEnabled: false),
+  });
+
+  testUsingContext('precache downloads macOS artifacts on dev branch when macOS is enabled.', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache', '--macos', '--no-android', '--no-ios']);
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+      DevelopmentArtifact.macOS,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FeatureFlags: () => TestFeatureFlags(isMacOSEnabled: true),
+  });
+
+  testUsingContext('precache does not download macOS artifacts on dev branch when feature is enabled.', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache', '--macos', '--no-android', '--no-ios']);
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FeatureFlags: () => TestFeatureFlags(isMacOSEnabled: false),
+  });
+
+  testUsingContext('precache downloads Windows artifacts on dev branch when feature is enabled.', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache', '--windows', '--no-android', '--no-ios']);
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+      DevelopmentArtifact.windows,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: true),
+  });
+
+  testUsingContext('precache does not download Windows artifacts on dev branch when feature is enabled.', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache', '--windows', '--no-android', '--no-ios']);
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: false),
+  });
+
+  testUsingContext('precache downloads Linux artifacts on dev branch when feature is enabled.', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache', '--linux', '--no-android', '--no-ios']);
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+      DevelopmentArtifact.linux,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FeatureFlags: () => TestFeatureFlags(isLinuxEnabled: true),
+  });
+
+  testUsingContext('precache does not download Linux artifacts on dev branch when feature is enabled.', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+    await createTestCommandRunner(command).run(const <String>['precache', '--linux', '--no-android', '--no-ios']);
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FeatureFlags: () => TestFeatureFlags(isLinuxEnabled: false),
   });
 
   testUsingContext('precache exits if requesting mismatched artifacts.', () async {
@@ -107,7 +220,12 @@ void main() {
     }));
   }, overrides: <Type, Generator>{
     Cache: () => cache,
-    FeatureFlags: () => TestFeatureFlags(isWebEnabled: true),
+    FeatureFlags: () => TestFeatureFlags(
+      isWebEnabled: true,
+      isLinuxEnabled: true,
+      isMacOSEnabled: true,
+      isWindowsEnabled: true,
+    ),
     FlutterVersion: () => masterFlutterVersion,
   });
 
@@ -184,6 +302,111 @@ void main() {
     FeatureFlags: () => TestFeatureFlags(isWebEnabled: false),
   });
 
+  testUsingContext('precache downloads iOS and Android artifacts by default', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+
+    await createTestCommandRunner(command).run(
+      const <String>[
+        'precache',
+      ],
+    );
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+      DevelopmentArtifact.iOS,
+      DevelopmentArtifact.androidGenSnapshot,
+      DevelopmentArtifact.androidMaven,
+      DevelopmentArtifact.androidInternalBuild,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+  });
+
+  testUsingContext('precache --all-platforms gets all artifacts', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+
+    await createTestCommandRunner(command).run(
+      const <String>[
+        'precache',
+        '--all-platforms',
+      ],
+    );
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+      DevelopmentArtifact.iOS,
+      DevelopmentArtifact.androidGenSnapshot,
+      DevelopmentArtifact.androidMaven,
+      DevelopmentArtifact.androidInternalBuild,
+      DevelopmentArtifact.web,
+      DevelopmentArtifact.macOS,
+      DevelopmentArtifact.linux,
+      DevelopmentArtifact.windows,
+      DevelopmentArtifact.fuchsia,
+      DevelopmentArtifact.flutterRunner,
+    }));
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FeatureFlags: () => TestFeatureFlags(
+      isWebEnabled: true,
+      isLinuxEnabled: true,
+      isMacOSEnabled: true,
+      isWindowsEnabled: true,
+    ),
+    FlutterVersion: () => masterFlutterVersion,
+  });
+
+  testUsingContext('precache with default artifacts does not override platform filtering', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+
+    await createTestCommandRunner(command).run(
+      const <String>[
+        'precache',
+      ],
+    );
+
+    verify(cache.platformOverrideArtifacts = <String>{});
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FlutterVersion: () => masterFlutterVersion,
+  });
+
+  testUsingContext('precache with explicit artifact options overrides platform filtering', () async {
+    final PrecacheCommand command = PrecacheCommand();
+    applyMocksToCommand(command);
+
+    await createTestCommandRunner(command).run(
+      const <String>[
+        'precache',
+        '--no-ios',
+        '--no-android',
+        '--macos',
+      ],
+    );
+
+    expect(artifacts, unorderedEquals(<DevelopmentArtifact>{
+      DevelopmentArtifact.universal,
+      DevelopmentArtifact.macOS,
+    }));
+    verify(cache.platformOverrideArtifacts = <String>{'macos'});
+  }, overrides: <Type, Generator>{
+    Cache: () => cache,
+    FlutterVersion: () => masterFlutterVersion,
+    FeatureFlags: () => TestFeatureFlags(
+      isMacOSEnabled: true,
+    ),
+    Platform: () => FakePlatform(
+      operatingSystem: 'windows',
+      environment: <String, String>{
+        'FLUTTER_ROOT': 'flutter',
+        'FLUTTER_ALREADY_LOCKED': 'true',
+      },
+    ),
+  });
+
   testUsingContext('precache downloads artifacts when --force is provided', () async {
     when(cache.isUpToDate()).thenReturn(true);
     final PrecacheCommand command = PrecacheCommand();
@@ -199,6 +422,9 @@ void main() {
   }, overrides: <Type, Generator>{
     Cache: () => cache,
     FlutterVersion: () => flutterVersion,
+    FeatureFlags: () => TestFeatureFlags(
+      isMacOSEnabled: true,
+    ),
   });
 }
 

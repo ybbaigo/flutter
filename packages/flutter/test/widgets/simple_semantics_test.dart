@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -34,7 +36,7 @@ void main() {
     )));
 
     semantics.dispose();
-  }, skip: isBrowser);
+  });
 
   testWidgets('Simple tree is simple - material', (WidgetTester tester) async {
     final SemanticsTester semantics = SemanticsTester(tester);
@@ -44,7 +46,7 @@ void main() {
       home: Center(
         child: Semantics(
           label: 'Hello!',
-          child: Container(
+          child: const SizedBox(
             width: 10.0,
             height: 10.0,
           ),
@@ -78,5 +80,5 @@ void main() {
     )));
 
     semantics.dispose();
-  }, skip: isBrowser);
+  });
 }

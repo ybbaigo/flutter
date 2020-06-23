@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -91,7 +93,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Pirate license'), findsOneWidget);
-  }, skip: isBrowser);
+  }, skip: isBrowser); // https://github.com/flutter/flutter/issues/54385
 
   testWidgets('About box logic defaults to executable name for app name', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -138,7 +140,7 @@ void main() {
     expect(find.text('BBB'), findsOneWidget);
     expect(find.text('Another package'), findsOneWidget);
     expect(find.text('Another license'), findsOneWidget);
-  }, skip: isBrowser);
+  }, skip: isBrowser); // https://github.com/flutter/flutter/issues/54385
 
   testWidgets('LicensePage control test with all properties', (WidgetTester tester) async {
     const FlutterLogo logo = FlutterLogo();
@@ -199,7 +201,7 @@ void main() {
     expect(find.text('BBB'), findsOneWidget);
     expect(find.text('Another package'), findsOneWidget);
     expect(find.text('Another license'), findsOneWidget);
-  }, skip: isBrowser);
+  }, skip: isBrowser); // https://github.com/flutter/flutter/issues/54385
 
   testWidgets('LicensePage respects the notch', (WidgetTester tester) async {
     const double safeareaPadding = 27.0;
@@ -224,7 +226,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.getTopLeft(find.text('DEF')), const Offset(8.0 + safeareaPadding, 287.0));
-  }, skip: isBrowser);
+  }, skip: isBrowser); // https://github.com/flutter/flutter/issues/54385
 
   testWidgets('LicensePage returns early if unmounted', (WidgetTester tester) async {
     final Completer<LicenseEntry> licenseCompleter = Completer<LicenseEntry>();
@@ -249,7 +251,7 @@ void main() {
     final FakeLicenseEntry licenseEntry = FakeLicenseEntry();
     licenseCompleter.complete(licenseEntry);
     expect(licenseEntry.paragraphsCalled, false);
-  }, skip: isBrowser);
+  });
 
   testWidgets('LicensePage returns late if unmounted', (WidgetTester tester) async {
     final Completer<LicenseEntry> licenseCompleter = Completer<LicenseEntry>();
@@ -274,7 +276,7 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(licenseEntry.paragraphsCalled, true);
-  }, skip: isBrowser);
+  });
 
   testWidgets('LicensePage logic defaults to executable name for app name', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -468,6 +470,54 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets("AboutDialog's contents are scrollable", (WidgetTester tester) async {
+    final Key contentKey = UniqueKey();
+    await tester.pumpWidget(MaterialApp(
+      home: Navigator(
+        onGenerateRoute: (RouteSettings settings) {
+          return MaterialPageRoute<dynamic>(
+            builder: (BuildContext context) {
+              return RaisedButton(
+                onPressed: () {
+                  showAboutDialog(
+                    context: context,
+                    useRootNavigator: false,
+                    applicationName: 'A',
+                    children: <Widget>[
+                      Container(
+                        key: contentKey,
+                        color: Colors.orange,
+                        height: 500,
+                      ),
+                    ],
+                  );
+                },
+                child: const Text('Show About Dialog'),
+              );
+            },
+          );
+        },
+      ),
+    ));
+
+    await tester.tap(find.text('Show About Dialog'));
+    await tester.pumpAndSettle();
+
+    // Try dragging by the [AboutDialog]'s title.
+    RenderBox box = tester.renderObject(find.text('A'));
+    Offset originalOffset = box.localToGlobal(Offset.zero);
+    await tester.drag(find.byKey(contentKey), const Offset(0.0, -20.0));
+
+    expect(box.localToGlobal(Offset.zero), equals(originalOffset.translate(0.0, -20.0)));
+
+    // Try dragging by the additional children in contents.
+    box = tester.renderObject(find.byKey(contentKey));
+    originalOffset = box.localToGlobal(Offset.zero);
+    await tester.drag(find.byKey(contentKey), const Offset(0.0, -20.0));
+
+    expect(box.localToGlobal(Offset.zero), equals(originalOffset.translate(0.0, -20.0)));
   });
 }
 

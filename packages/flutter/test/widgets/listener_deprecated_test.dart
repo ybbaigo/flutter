@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,10 +12,6 @@ import 'package:flutter/gestures.dart';
 
 // The tests in this file are moved from listener_test.dart, which tests several
 // deprecated APIs. The file should be removed once these parameters are.
-
-// ignore_for_file: deprecated_member_use_from_same_package
-// We have to ignore the lint rule here because we need to use the deprecated
-// callbacks in order to test them.
 
 class HoverClient extends StatefulWidget {
   const HoverClient({Key key, this.onHover, this.child}) : super(key: key);
@@ -122,7 +120,7 @@ void main() {
       await tester.pumpWidget(
         Center(
           child: Listener(
-            child: Container(
+            child: const SizedBox(
               width: 100.0,
               height: 100.0,
             ),
@@ -152,7 +150,7 @@ void main() {
       await tester.pumpWidget(
         Center(
           child: Listener(
-            child: Container(
+            child: const SizedBox(
               width: 100.0,
               height: 100.0,
             ),
@@ -162,7 +160,6 @@ void main() {
           ),
         ),
       );
-      final RenderMouseRegion renderListener = tester.renderObject(find.byType(MouseRegion));
       final TestGesture gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: const Offset(400.0, 300.0));
       addTearDown(gesture.removePointer);
@@ -171,14 +168,13 @@ void main() {
       expect(enter, isNotNull);
       expect(enter.position, equals(const Offset(400.0, 300.0)));
       expect(exit, isNull);
-      await tester.pumpWidget(Center(
-        child: Container(
+      await tester.pumpWidget(const Center(
+        child: SizedBox(
           width: 100.0,
           height: 100.0,
         ),
       ));
       expect(exit, isNull);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener.hoverAnnotation), isFalse);
     });
     testWidgets('Hover works with nested listeners', (WidgetTester tester) async {
       final UniqueKey key1 = UniqueKey();
@@ -229,9 +225,6 @@ void main() {
           ],
         ),
       );
-      final List<RenderObject> listeners = tester.renderObjectList(find.byType(MouseRegion)).toList();
-      final RenderMouseRegion renderListener1 = listeners[0] as RenderMouseRegion;
-      final RenderMouseRegion renderListener2 = listeners[1] as RenderMouseRegion;
       Offset center = tester.getCenter(find.byKey(key2));
       await gesture.moveTo(center);
       await tester.pump();
@@ -243,8 +236,6 @@ void main() {
       expect(enter1, isNotEmpty);
       expect(enter1.last.position, equals(center));
       expect(exit1, isEmpty);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener1.hoverAnnotation), isTrue);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener2.hoverAnnotation), isTrue);
       clearLists();
 
       // Now make sure that exiting the child only triggers the child exit, not
@@ -259,8 +250,6 @@ void main() {
       expect(move1.last.position, equals(center));
       expect(enter1, isEmpty);
       expect(exit1, isEmpty);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener1.hoverAnnotation), isTrue);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener2.hoverAnnotation), isTrue);
       clearLists();
     });
     testWidgets('Hover transfers between two listeners', (WidgetTester tester) async {
@@ -293,7 +282,7 @@ void main() {
           children: <Widget>[
             Listener(
               key: key1,
-              child: Container(
+              child: const SizedBox(
                 width: 100.0,
                 height: 100.0,
               ),
@@ -303,7 +292,7 @@ void main() {
             ),
             Listener(
               key: key2,
-              child: Container(
+              child: const SizedBox(
                 width: 100.0,
                 height: 100.0,
               ),
@@ -314,9 +303,6 @@ void main() {
           ],
         ),
       );
-      final List<RenderObject> listeners = tester.renderObjectList(find.byType(MouseRegion)).toList();
-      final RenderMouseRegion renderListener1 = listeners[0] as RenderMouseRegion;
-      final RenderMouseRegion renderListener2 = listeners[1] as RenderMouseRegion;
       final Offset center1 = tester.getCenter(find.byKey(key1));
       final Offset center2 = tester.getCenter(find.byKey(key2));
       await gesture.moveTo(center1);
@@ -329,8 +315,6 @@ void main() {
       expect(move2, isEmpty);
       expect(enter2, isEmpty);
       expect(exit2, isEmpty);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener1.hoverAnnotation), isTrue);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener2.hoverAnnotation), isTrue);
       clearLists();
       await gesture.moveTo(center2);
       await tester.pump();
@@ -343,8 +327,6 @@ void main() {
       expect(enter2, isNotEmpty);
       expect(enter2.last.position, equals(center2));
       expect(exit2, isEmpty);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener1.hoverAnnotation), isTrue);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener2.hoverAnnotation), isTrue);
       clearLists();
       await gesture.moveTo(const Offset(400.0, 450.0));
       await tester.pump();
@@ -355,8 +337,6 @@ void main() {
       expect(enter2, isEmpty);
       expect(exit2, isNotEmpty);
       expect(exit2.last.position, equals(const Offset(400.0, 450.0)));
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener1.hoverAnnotation), isTrue);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener2.hoverAnnotation), isTrue);
       clearLists();
       await tester.pumpWidget(Container());
       expect(move1, isEmpty);
@@ -365,8 +345,6 @@ void main() {
       expect(move2, isEmpty);
       expect(enter2, isEmpty);
       expect(exit2, isEmpty);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener1.hoverAnnotation), isFalse);
-      expect(tester.binding.mouseTracker.isAnnotationAttached(renderListener2.hoverAnnotation), isFalse);
     });
 
     testWidgets('needsCompositing set when parent class needsCompositing is set', (WidgetTester tester) async {
@@ -581,7 +559,7 @@ void main() {
             onPointerEnter: (PointerEnterEvent e) => enter.add(e),
             onPointerHover: (PointerHoverEvent e) => hover.add(e),
             onPointerExit: (PointerExitEvent e) => exit.add(e),
-            child: Container(
+            child: const SizedBox(
               height: 100.0,
               width: 100.0,
             ),
@@ -594,7 +572,7 @@ void main() {
       await gesture.addPointer(location: Offset.zero);
       addTearDown(() => gesture?.removePointer());
       await tester.pumpAndSettle();
-      await gesture.moveTo(tester.getCenter(find.byType(Container)));
+      await gesture.moveTo(tester.getCenter(find.byType(SizedBox)));
 
       expect(enter.length, 1);
       expect(enter.single.position, const Offset(400.0, 300.0));

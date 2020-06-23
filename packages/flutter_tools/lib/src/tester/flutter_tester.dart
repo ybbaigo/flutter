@@ -65,9 +65,12 @@ class FlutterTesterDevice extends Device {
 
   @override
   Future<String> get sdkNameAndVersion async {
-    final FlutterVersion flutterVersion = FlutterVersion.instance;
+    final FlutterVersion flutterVersion = globals.flutterVersion;
     return 'Flutter ${flutterVersion.frameworkRevisionShort}';
   }
+
+  @override
+  bool supportsRuntimeMode(BuildMode buildMode) => buildMode == BuildMode.debug;
 
   @override
   Future<TargetPlatform> get targetPlatform async => TargetPlatform.tester;
@@ -79,13 +82,24 @@ class FlutterTesterDevice extends Device {
       _FlutterTesterDeviceLogReader();
 
   @override
-  DeviceLogReader getLogReader({ ApplicationPackage app }) => _logReader;
+  DeviceLogReader getLogReader({
+    ApplicationPackage app,
+    bool includePastLogs = false,
+  }) {
+    return _logReader;
+  }
 
   @override
-  Future<bool> installApp(ApplicationPackage app) async => true;
+  Future<bool> installApp(
+    ApplicationPackage app, {
+    String userIdentifier,
+  }) async => true;
 
   @override
-  Future<bool> isAppInstalled(ApplicationPackage app) async => false;
+  Future<bool> isAppInstalled(
+    ApplicationPackage app, {
+    String userIdentifier,
+  }) async => false;
 
   @override
   Future<bool> isLatestBuildInstalled(ApplicationPackage app) async => false;
@@ -101,10 +115,11 @@ class FlutterTesterDevice extends Device {
     ApplicationPackage package, {
     @required String mainPath,
     String route,
-    @required DebuggingOptions debuggingOptions,
+    DebuggingOptions debuggingOptions,
     Map<String, dynamic> platformArgs,
     bool prebuiltApplication = false,
     bool ipv6 = false,
+    String userIdentifier,
   }) async {
     final BuildInfo buildInfo = debuggingOptions.buildInfo;
 
@@ -123,7 +138,7 @@ class FlutterTesterDevice extends Device {
       '--run-forever',
       '--non-interactive',
       '--enable-dart-profiling',
-      '--packages=${PackageMap.globalPackagesPath}',
+      '--packages=$globalPackagesPath',
     ];
     if (debuggingOptions.debuggingEnabled) {
       if (debuggingOptions.startPaused) {
@@ -144,18 +159,20 @@ class FlutterTesterDevice extends Device {
       trackWidgetCreation: buildInfo.trackWidgetCreation,
     );
     await BundleBuilder().build(
-      buildMode: buildInfo.mode,
+      buildInfo: buildInfo,
       mainPath: mainPath,
       assetDirPath: assetDirPath,
       applicationKernelFilePath: applicationKernelFilePath,
       precompiledSnapshot: false,
       trackWidgetCreation: buildInfo.trackWidgetCreation,
       platform: getTargetPlatformForName(getNameForHostPlatform(getCurrentHostPlatform())),
+      treeShakeIcons: buildInfo.treeShakeIcons,
     );
     command.add('--flutter-assets-dir=$assetDirPath');
 
     command.add(applicationKernelFilePath);
 
+    ProtocolDiscovery observatoryDiscovery;
     try {
       globals.printTrace(command.join(' '));
 
@@ -184,7 +201,7 @@ class FlutterTesterDevice extends Device {
         return LaunchResult.succeeded();
       }
 
-      final ProtocolDiscovery observatoryDiscovery = ProtocolDiscovery.observatory(
+      observatoryDiscovery = ProtocolDiscovery.observatory(
         getLogReader(),
         hostPort: debuggingOptions.hostVmServicePort,
         devicePort: debuggingOptions.deviceVmServicePort,
@@ -192,22 +209,36 @@ class FlutterTesterDevice extends Device {
       );
 
       final Uri observatoryUri = await observatoryDiscovery.uri;
-      return LaunchResult.succeeded(observatoryUri: observatoryUri);
-    } catch (error) {
+      if (observatoryUri != null) {
+        return LaunchResult.succeeded(observatoryUri: observatoryUri);
+      }
+      globals.printError(
+        'Failed to launch $package: '
+        'The log reader failed unexpectedly.',
+      );
+    } on Exception catch (error) {
       globals.printError('Failed to launch $package: $error');
-      return LaunchResult.failed();
+    } finally {
+      await observatoryDiscovery?.cancel();
     }
+    return LaunchResult.failed();
   }
 
   @override
-  Future<bool> stopApp(ApplicationPackage app) async {
+  Future<bool> stopApp(
+    ApplicationPackage app, {
+    String userIdentifier,
+  }) async {
     _process?.kill();
     _process = null;
     return true;
   }
 
   @override
-  Future<bool> uninstallApp(ApplicationPackage app) async => true;
+  Future<bool> uninstallApp(
+    ApplicationPackage app, {
+    String userIdentifier,
+  }) async => true;
 
   @override
   bool isSupportedForProject(FlutterProject flutterProject) => true;
@@ -236,7 +267,7 @@ class FlutterTesterDevices extends PollingDeviceDiscovery {
   bool get supportsPlatform => true;
 
   @override
-  Future<List<Device>> pollingGetDevices() async {
+  Future<List<Device>> pollingGetDevices({ Duration timeout }) async {
     return showFlutterTesterDevice ? <Device>[_testerDevice] : <Device>[];
   }
 }

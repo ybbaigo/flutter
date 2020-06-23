@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,6 +48,7 @@ void main() {
 
     expect(material.clipBehavior, cardTheme.clipBehavior);
     expect(material.color, cardTheme.color);
+    expect(material.shadowColor, cardTheme.shadowColor);
     expect(material.elevation, cardTheme.elevation);
     expect(container.margin, cardTheme.margin);
     expect(material.shape, cardTheme.shape);
@@ -146,6 +149,7 @@ CardTheme _cardTheme() {
   return const CardTheme(
     clipBehavior: Clip.antiAlias,
     color: Colors.green,
+    shadowColor: Colors.red,
     elevation: 6.0,
     margin: EdgeInsets.all(7.0),
     shape: RoundedRectangleBorder(

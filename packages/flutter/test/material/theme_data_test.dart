@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -178,6 +181,20 @@ void main() {
     expect(theme.applyElevationOverlayColor, isTrue);
   });
 
+  testWidgets('VisualDensity.adaptivePlatformDensity returns adaptive values', (WidgetTester tester) async {
+    switch (debugDefaultTargetPlatformOverride) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+      case TargetPlatform.fuchsia:
+        expect(VisualDensity.adaptivePlatformDensity, equals(const VisualDensity()));
+        break;
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+        expect(VisualDensity.adaptivePlatformDensity, equals(VisualDensity.compact));
+    }
+  }, variant: TargetPlatformVariant.all());
+
   testWidgets('ThemeData.copyWith correctly creates new ThemeData with all copied arguments', (WidgetTester tester) async {
 
     final SliderThemeData sliderTheme = SliderThemeData.fromPrimaryColors(
@@ -201,7 +218,6 @@ void main() {
     );
 
     final ThemeData theme = ThemeData.raw(
-      brightness: Brightness.dark,
       visualDensity: const VisualDensity(),
       primaryColor: Colors.black,
       primaryColorBrightness: Brightness.dark,
@@ -256,6 +272,7 @@ void main() {
       colorScheme: const ColorScheme.light(),
       dialogTheme: const DialogTheme(backgroundColor: Colors.black),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(backgroundColor: Colors.black),
+      navigationRailTheme: const NavigationRailThemeData(backgroundColor: Colors.black),
       typography: Typography.material2018(platform: TargetPlatform.android),
       cupertinoOverrideTheme: null,
       snackBarTheme: const SnackBarThemeData(backgroundColor: Colors.black),
@@ -264,6 +281,9 @@ void main() {
       bannerTheme: const MaterialBannerThemeData(backgroundColor: Colors.black),
       dividerTheme: const DividerThemeData(color: Colors.black),
       buttonBarTheme: const ButtonBarThemeData(alignment: MainAxisAlignment.start),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(type: BottomNavigationBarType.fixed),
+      timePickerTheme: const TimePickerThemeData(backgroundColor: Colors.black),
+      fixTextFieldOutlineLabel: false,
     );
 
     final SliderThemeData otherSliderTheme = SliderThemeData.fromPrimaryColors(
@@ -280,7 +300,6 @@ void main() {
     );
 
     final ThemeData otherTheme = ThemeData.raw(
-      brightness: Brightness.light,
       visualDensity: const VisualDensity(),
       primaryColor: Colors.white,
       primaryColorBrightness: Brightness.light,
@@ -335,6 +354,7 @@ void main() {
       colorScheme: const ColorScheme.light(),
       dialogTheme: const DialogTheme(backgroundColor: Colors.white),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(backgroundColor: Colors.white),
+      navigationRailTheme: const NavigationRailThemeData(backgroundColor: Colors.white),
       typography: Typography.material2018(platform: TargetPlatform.iOS),
       cupertinoOverrideTheme: ThemeData.light().cupertinoOverrideTheme,
       snackBarTheme: const SnackBarThemeData(backgroundColor: Colors.white),
@@ -343,10 +363,12 @@ void main() {
       bannerTheme: const MaterialBannerThemeData(backgroundColor: Colors.white),
       dividerTheme: const DividerThemeData(color: Colors.white),
       buttonBarTheme: const ButtonBarThemeData(alignment: MainAxisAlignment.end),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(type: BottomNavigationBarType.shifting),
+      timePickerTheme: const TimePickerThemeData(backgroundColor: Colors.white),
+      fixTextFieldOutlineLabel: true,
     );
 
     final ThemeData themeDataCopy = theme.copyWith(
-      brightness: otherTheme.brightness,
       primaryColor: otherTheme.primaryColor,
       primaryColorBrightness: otherTheme.primaryColorBrightness,
       primaryColorLight: otherTheme.primaryColorLight,
@@ -400,6 +422,7 @@ void main() {
       colorScheme: otherTheme.colorScheme,
       dialogTheme: otherTheme.dialogTheme,
       floatingActionButtonTheme: otherTheme.floatingActionButtonTheme,
+      navigationRailTheme: otherTheme.navigationRailTheme,
       typography: otherTheme.typography,
       cupertinoOverrideTheme: otherTheme.cupertinoOverrideTheme,
       snackBarTheme: otherTheme.snackBarTheme,
@@ -408,6 +431,9 @@ void main() {
       bannerTheme: otherTheme.bannerTheme,
       dividerTheme: otherTheme.dividerTheme,
       buttonBarTheme: otherTheme.buttonBarTheme,
+      bottomNavigationBarTheme: otherTheme.bottomNavigationBarTheme,
+      timePickerTheme: otherTheme.timePickerTheme,
+      fixTextFieldOutlineLabel: otherTheme.fixTextFieldOutlineLabel,
     );
 
     expect(themeDataCopy.brightness, equals(otherTheme.brightness));
@@ -466,6 +492,7 @@ void main() {
     expect(themeDataCopy.colorScheme, equals(otherTheme.colorScheme));
     expect(themeDataCopy.dialogTheme, equals(otherTheme.dialogTheme));
     expect(themeDataCopy.floatingActionButtonTheme, equals(otherTheme.floatingActionButtonTheme));
+    expect(themeDataCopy.navigationRailTheme, equals(otherTheme.navigationRailTheme));
     expect(themeDataCopy.typography, equals(otherTheme.typography));
     expect(themeDataCopy.cupertinoOverrideTheme, equals(otherTheme.cupertinoOverrideTheme));
     expect(themeDataCopy.snackBarTheme, equals(otherTheme.snackBarTheme));
@@ -474,6 +501,46 @@ void main() {
     expect(themeDataCopy.bannerTheme, equals(otherTheme.bannerTheme));
     expect(themeDataCopy.dividerTheme, equals(otherTheme.dividerTheme));
     expect(themeDataCopy.buttonBarTheme, equals(otherTheme.buttonBarTheme));
+    expect(themeDataCopy.bottomNavigationBarTheme, equals(otherTheme.bottomNavigationBarTheme));
+    expect(themeDataCopy.timePickerTheme, equals(otherTheme.timePickerTheme));
+    expect(themeDataCopy.fixTextFieldOutlineLabel, equals(otherTheme.fixTextFieldOutlineLabel));
   });
 
+  testWidgets('ThemeData.toString has less than 200 characters output', (WidgetTester tester) async {
+    // This test makes sure that the ThemeData debug output doesn't get too
+    // verbose, which has been a problem in the past.
+
+    const ColorScheme darkColors = ColorScheme.dark();
+    final ThemeData darkTheme = ThemeData.from(colorScheme: darkColors);
+
+    expect(darkTheme.toString().length, lessThan(200));
+
+    const ColorScheme lightColors = ColorScheme.light();
+    final ThemeData lightTheme = ThemeData.from(colorScheme: lightColors);
+
+    expect(lightTheme.toString().length, lessThan(200));
+  });
+
+  testWidgets('ThemeData brightness parameter overrides ColorScheme brightness', (WidgetTester tester) async {
+    const ColorScheme lightColors = ColorScheme.light();
+    expect(() => ThemeData(colorScheme: lightColors, brightness: Brightness.dark), throwsAssertionError);
+  });
+
+  testWidgets('ThemeData.copyWith brightness parameter overrides ColorScheme brightness', (WidgetTester tester) async {
+    const ColorScheme lightColors = ColorScheme.light();
+    final ThemeData theme = ThemeData.from(colorScheme: lightColors).copyWith(brightness: Brightness.dark);
+
+    // The brightness parameter only overrides ColorScheme.brightness.
+    expect(theme.brightness, equals(Brightness.dark));
+    expect(theme.colorScheme.brightness, equals(Brightness.dark));
+    expect(theme.primaryColor, equals(lightColors.primary));
+    expect(theme.accentColor, equals(lightColors.secondary));
+    expect(theme.cardColor, equals(lightColors.surface));
+    expect(theme.backgroundColor, equals(lightColors.background));
+    expect(theme.canvasColor, equals(lightColors.background));
+    expect(theme.scaffoldBackgroundColor, equals(lightColors.background));
+    expect(theme.dialogBackgroundColor, equals(lightColors.background));
+    expect(theme.errorColor, equals(lightColors.error));
+    expect(theme.applyElevationOverlayColor, isFalse);
+  });
 }

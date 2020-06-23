@@ -6,6 +6,8 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:clock/clock.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -13,8 +15,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart' show TestWindow;
-import 'package:quiver/testing/async.dart';
-import 'package:quiver/time.dart';
 // ignore: deprecated_member_use
 import 'package:test_api/test_api.dart' as test_package;
 import 'package:stack_trace/stack_trace.dart' as stack_trace;
@@ -135,8 +135,18 @@ class TestDefaultBinaryMessenger extends BinaryMessenger {
   }
 
   @override
+  bool checkMessageHandler(String channel, MessageHandler handler) {
+    return delegate.checkMessageHandler(channel, handler);
+  }
+
+  @override
   void setMockMessageHandler(String channel, MessageHandler handler) {
     delegate.setMockMessageHandler(channel, handler);
+  }
+
+  @override
+  bool checkMockMessageHandler(String channel, MessageHandler handler) {
+    return delegate.checkMockMessageHandler(channel, handler);
   }
 }
 
@@ -147,9 +157,16 @@ class TestDefaultBinaryMessenger extends BinaryMessenger {
 ///
 /// When using these bindings, certain features are disabled. For
 /// example, [timeDilation] is reset to 1.0 on initialization.
+///
+/// In non-browser tests, the binding overrides `HttpClient` creation with a
+/// fake client that always returns a status code of 400. This is to prevent
+/// tests from making network calls, which could introduce flakiness. A test
+/// that actually needs to make a network call should provide its own
+/// `HttpClient` to the code making the call, so that it can appropriately mock
+/// or fake responses.
 abstract class TestWidgetsFlutterBinding extends BindingBase
-  with ServicesBinding,
-       SchedulerBinding,
+  with SchedulerBinding,
+       ServicesBinding,
        GestureBinding,
        SemanticsBinding,
        RendererBinding,
@@ -187,6 +204,27 @@ abstract class TestWidgetsFlutterBinding extends BindingBase
   /// always run with shadows disabled.
   @protected
   bool get disableShadows => false;
+
+  /// Determines whether the Dart [HttpClient] class should be overriden to
+  /// always return a failure response.
+  ///
+  /// By default, this value is true, so that unit tests will not become flaky
+  /// due to intermitten network errors. The value may be overriden by a binding
+  /// intended for use in integration tests that do end to end application
+  /// testing, including working with real network responses.
+  @protected
+  bool get overrideHttpClient => true;
+
+  /// Determines whether the binding automatically registers [testTextInput].
+  ///
+  /// Unit tests make use of this to mock out text input communication for
+  /// widgets. An integration test would set this to false, to test real IME
+  /// or keyboard input.
+  ///
+  /// [TestTextInput.isRegistered] reports whether the text input mock is
+  /// registered or not.
+  @protected
+  bool get registerTestTextInput => true;
 
   /// Increase the timeout for the current test by the given duration.
   ///
@@ -252,8 +290,13 @@ abstract class TestWidgetsFlutterBinding extends BindingBase
   void initInstances() {
     super.initInstances();
     timeDilation = 1.0; // just in case the developer has artificially changed it for development
-    binding.setupHttpOverrides();
-    _testTextInput = TestTextInput(onCleared: _resetFocusedEditable)..register();
+    if (overrideHttpClient) {
+      binding.setupHttpOverrides();
+    }
+    _testTextInput = TestTextInput(onCleared: _resetFocusedEditable);
+    if (registerTestTextInput) {
+      _testTextInput.register();
+    }
   }
 
   @override
@@ -344,9 +387,6 @@ abstract class TestWidgetsFlutterBinding extends BindingBase
     return TestAsyncUtils.guard<void>(() async {
       assert(inTest);
       final Locale locale = Locale(languageCode, countryCode == '' ? null : countryCode);
-      if (isBrowser) {
-        return;
-      }
       dispatchLocalesChanged(<Locale>[locale]);
     });
   }
@@ -1112,28 +1152,20 @@ class AutomatedTestWidgetsFlutterBinding extends TestWidgetsFlutterBinding {
   void _verifyInvariants() {
     super._verifyInvariants();
 
-    assert(() {
-      if (   _currentFakeAsync.periodicTimerCount == 0
-          && _currentFakeAsync.nonPeriodicTimerCount == 0) {
-        return true;
-      }
-
-      debugPrint('Pending timers:');
-      for (final String timerInfo in _currentFakeAsync.pendingTimersDebugInfo) {
-        final int firstLineEnd = timerInfo.indexOf('\n');
-        assert(firstLineEnd != -1);
-
-        // No need to include the newline.
-        final String firstLine = timerInfo.substring(0, firstLineEnd);
-        final String stackTrace = timerInfo.substring(firstLineEnd + 1);
-
-        debugPrint(firstLine);
-        debugPrintStack(stackTrace: StackTrace.fromString(stackTrace));
-        debugPrint('');
-      }
-      return false;
-    }(), 'A Timer is still pending even after the widget tree was disposed.');
-
+    bool timersPending = false;
+    if (_currentFakeAsync.periodicTimerCount != 0 ||
+        _currentFakeAsync.nonPeriodicTimerCount != 0) {
+        debugPrint('Pending timers:');
+        for (final FakeTimer timer in _currentFakeAsync.pendingTimers) {
+          debugPrint(
+            'Timer (duration: ${timer.duration}, '
+            'periodic: ${timer.isPeriodic}), created:');
+          debugPrintStack(stackTrace: timer.creationStackTrace);
+          debugPrint('');
+        }
+        timersPending = true;
+    }
+    assert(!timersPending, 'A Timer is still pending even after the widget tree was disposed.');
     assert(_currentFakeAsync.microtaskCount == 0); // Shouldn't be possible.
   }
 

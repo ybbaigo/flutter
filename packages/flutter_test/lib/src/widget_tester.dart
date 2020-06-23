@@ -89,6 +89,9 @@ typedef WidgetTesterCallback = Future<void> Function(WidgetTester widgetTester);
 /// each value of the [TestVariant.values]. If [variant] is not set, the test
 /// will be run once using the base test environment.
 ///
+/// If the [tags] are passed, they declare user-defined tags that are implemented by
+/// the `test` package.
+///
 /// See also:
 ///
 ///  * [AutomatedTestWidgetsFlutterBinding.addTime] to learn more about
@@ -112,6 +115,7 @@ void testWidgets(
   Duration initialTimeout,
   bool semanticsEnabled = true,
   TestVariant<Object> variant = const DefaultTestVariant(),
+  dynamic tags,
 }) {
   assert(variant != null);
   assert(variant.values.isNotEmpty, 'There must be at least on value to test in the testing variant');
@@ -150,6 +154,7 @@ void testWidgets(
       },
       skip: skip,
       timeout: timeout ?? binding.defaultTestTimeout,
+      tags: tags,
     );
   }
 }
@@ -224,6 +229,22 @@ class TargetPlatformVariant extends TestVariant<TargetPlatform> {
   /// Creates a [TargetPlatformVariant] that tests all values from
   /// the [TargetPlatform] enum.
   TargetPlatformVariant.all() : values = TargetPlatform.values.toSet();
+
+  /// Creates a [TargetPlatformVariant] that includes platforms that are
+  /// considered desktop platforms.
+  TargetPlatformVariant.desktop() : values = <TargetPlatform>{
+    TargetPlatform.linux,
+    TargetPlatform.macOS,
+    TargetPlatform.windows,
+  };
+
+  /// Creates a [TargetPlatformVariant] that includes platforms that are
+  /// considered mobile platforms.
+  TargetPlatformVariant.mobile() : values = <TargetPlatform>{
+    TargetPlatform.android,
+    TargetPlatform.iOS,
+    TargetPlatform.fuchsia,
+  };
 
   /// Creates a [TargetPlatformVariant] that tests only the given value of
   /// [TargetPlatform].
@@ -545,6 +566,29 @@ class WidgetTester extends WidgetController implements HitTestDispatcher, Ticker
     }).then<int>((_) => count);
   }
 
+  /// Repeatedly pump frames that render the `target` widget with a fixed time
+  /// `interval` as many as `maxDuration` allows.
+  ///
+  /// The `maxDuration` argument is required. The `interval` argument defaults to
+  /// 16.683 milliseconds (59.94 FPS).
+  Future<void> pumpFrames(
+    Widget target,
+    Duration maxDuration, [
+    Duration interval = const Duration(milliseconds: 16, microseconds: 683),
+  ]) {
+    assert(maxDuration != null);
+    // The interval following the last frame doesn't have to be within the fullDuration.
+    Duration elapsed = Duration.zero;
+    return TestAsyncUtils.guard<void>(() async {
+      binding.attachRootWidget(target);
+      binding.scheduleFrame();
+      while (elapsed < maxDuration) {
+        await binding.pump(interval);
+        elapsed += interval;
+      }
+    });
+  }
+
   /// Runs a [callback] that performs real asynchronous work.
   ///
   /// This is intended for callers who need to call asynchronous methods where
@@ -638,7 +682,7 @@ class WidgetTester extends WidgetController implements HitTestDispatcher, Ticker
         if (widget is Tooltip) {
           final Iterable<Element> matches = find.byTooltip(widget.message).evaluate();
           if (matches.length == 1) {
-            debugPrint('  find.byTooltip(\'${widget.message}\')');
+            debugPrint("  find.byTooltip('${widget.message}')");
             continue;
           }
         }
@@ -648,7 +692,7 @@ class WidgetTester extends WidgetController implements HitTestDispatcher, Ticker
           final Iterable<Element> matches = find.text(widget.data).evaluate();
           descendantText = widget.data;
           if (matches.length == 1) {
-            debugPrint('  find.text(\'${widget.data}\')');
+            debugPrint("  find.text('${widget.data}')");
             continue;
           }
         }
@@ -661,7 +705,7 @@ class WidgetTester extends WidgetController implements HitTestDispatcher, Ticker
               key is ValueKey<bool>) {
             keyLabel = 'const ${key.runtimeType}(${key.value})';
           } else if (key is ValueKey<String>) {
-            keyLabel = 'const Key(\'${key.value}\')';
+            keyLabel = "const Key('${key.value}')";
           }
           if (keyLabel != null) {
             final Iterable<Element> matches = find.byKey(key).evaluate();
@@ -685,7 +729,7 @@ class WidgetTester extends WidgetController implements HitTestDispatcher, Ticker
           if (descendantText != null && numberOfWithTexts < 5) {
             final Iterable<Element> matches = find.widgetWithText(widget.runtimeType, descendantText).evaluate();
             if (matches.length == 1) {
-              debugPrint('  find.widgetWithText(${widget.runtimeType}, \'$descendantText\')');
+              debugPrint("  find.widgetWithText(${widget.runtimeType}, '$descendantText')");
               numberOfWithTexts += 1;
               continue;
             }
@@ -780,8 +824,6 @@ class WidgetTester extends WidgetController implements HitTestDispatcher, Ticker
   void _verifySemanticsHandlesWereDisposed() {
     assert(_lastRecordedSemanticsHandles != null);
     if (binding.pipelineOwner.debugOutstandingSemanticsHandles > _lastRecordedSemanticsHandles) {
-      // TODO(jacobr): The hint for this one causes a change in line breaks but
-      // I think it is for the best.
       throw FlutterError.fromParts(<DiagnosticsNode>[
         ErrorSummary('A SemanticsHandle was active at the end of the test.'),
         ErrorDescription(

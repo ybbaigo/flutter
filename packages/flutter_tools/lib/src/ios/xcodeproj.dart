@@ -5,16 +5,14 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
-import 'package:platform/platform.dart';
 import 'package:process/process.dart';
 
 import '../artifacts.dart';
 import '../base/common.dart';
-import '../base/context.dart';
 import '../base/file_system.dart';
 import '../base/io.dart';
 import '../base/logger.dart';
-import '../base/os.dart';
+import '../base/platform.dart';
 import '../base/process.dart';
 import '../base/terminal.dart';
 import '../base/utils.dart';
@@ -118,7 +116,7 @@ void _updateGeneratedEnvironmentVariablesScript({
     : project.ios.generatedEnvironmentVariableExportScript;
   generatedModuleBuildPhaseScript.createSync(recursive: true);
   generatedModuleBuildPhaseScript.writeAsStringSync(localsBuffer.toString());
-  os.chmod(generatedModuleBuildPhaseScript, '755');
+  globals.os.chmod(generatedModuleBuildPhaseScript, '755');
 }
 
 /// Build name parsed and validated from build info and manifest. Used for CFBundleShortVersionString.
@@ -127,7 +125,7 @@ String parsedBuildName({
   @required BuildInfo buildInfo,
 }) {
   final String buildNameToParse = buildInfo?.buildName ?? manifest.buildName;
-  return validatedBuildNameForPlatform(TargetPlatform.ios, buildNameToParse);
+  return validatedBuildNameForPlatform(TargetPlatform.ios, buildNameToParse, globals.logger);
 }
 
 /// Build number parsed and validated from build info and manifest. Used for CFBundleVersion.
@@ -136,14 +134,22 @@ String parsedBuildNumber({
   @required BuildInfo buildInfo,
 }) {
   String buildNumberToParse = buildInfo?.buildNumber ?? manifest.buildNumber;
-  final String buildNumber = validatedBuildNumberForPlatform(TargetPlatform.ios, buildNumberToParse);
+  final String buildNumber = validatedBuildNumberForPlatform(
+    TargetPlatform.ios,
+    buildNumberToParse,
+    globals.logger,
+  );
   if (buildNumber != null && buildNumber.isNotEmpty) {
     return buildNumber;
   }
   // Drop back to parsing build name if build number is not present. Build number is optional in the manifest, but
   // FLUTTER_BUILD_NUMBER is required as the backing value for the required CFBundleVersion.
   buildNumberToParse = buildInfo?.buildName ?? manifest.buildName;
-  return validatedBuildNumberForPlatform(TargetPlatform.ios, buildNumberToParse);
+  return validatedBuildNumberForPlatform(
+    TargetPlatform.ios,
+    buildNumberToParse,
+    globals.logger,
+  );
 }
 
 /// List of lines of build settings. Example: 'FLUTTER_BUILD_DIR=build'
@@ -173,6 +179,11 @@ List<String> _xcodeBuildSettingsLines({
 
   if (setSymroot) {
     xcodeBuildSettings.add('SYMROOT=\${SOURCE_ROOT}/../${getIosBuildDirectory()}');
+  }
+
+  // iOS does not link on Flutter in any build phase. Add the linker flag.
+  if (!useMacOSConfig) {
+    xcodeBuildSettings.add('OTHER_LDFLAGS=\$(inherited) -framework Flutter');
   }
 
   if (!project.isModule) {
@@ -213,14 +224,11 @@ List<String> _xcodeBuildSettingsLines({
     }
   }
 
-  if (buildInfo.trackWidgetCreation) {
-    xcodeBuildSettings.add('TRACK_WIDGET_CREATION=true');
+  for (final MapEntry<String, String> config in buildInfo.toEnvironmentConfig().entries) {
+    xcodeBuildSettings.add('${config.key}=${config.value}');
   }
-
   return xcodeBuildSettings;
 }
-
-XcodeProjectInterpreter get xcodeProjectInterpreter => context.get<XcodeProjectInterpreter>();
 
 /// Interpreter of Xcode projects.
 class XcodeProjectInterpreter {
@@ -229,18 +237,21 @@ class XcodeProjectInterpreter {
     @required ProcessManager processManager,
     @required Logger logger,
     @required FileSystem fileSystem,
-    @required AnsiTerminal terminal,
+    @required Terminal terminal,
+    @required Usage usage,
   }) : _platform = platform,
-       _fileSystem = fileSystem,
-       _terminal = terminal,
-       _logger = logger,
-       _processUtils = ProcessUtils(logger: logger, processManager: processManager);
+      _fileSystem = fileSystem,
+      _terminal = terminal,
+      _logger = logger,
+      _processUtils = ProcessUtils(logger: logger, processManager: processManager),
+      _usage = usage;
 
   final Platform _platform;
   final FileSystem _fileSystem;
   final ProcessUtils _processUtils;
-  final AnsiTerminal _terminal;
+  final Terminal _terminal;
   final Logger _logger;
+  final Usage _usage;
 
   static const String _executable = '/usr/bin/xcodebuild';
   static final RegExp _versionRegex = RegExp(r'Xcode ([0-9.]+)');
@@ -298,24 +309,26 @@ class XcodeProjectInterpreter {
 
   /// Asynchronously retrieve xcode build settings. This one is preferred for
   /// new call-sites.
+  ///
+  /// If [scheme] is null, xcodebuild will return build settings for the first discovered
+  /// target (by default this is Runner).
   Future<Map<String, String>> getBuildSettings(
-    String projectPath,
-    String target, {
+    String projectPath, {
+    String scheme,
     Duration timeout = const Duration(minutes: 1),
   }) async {
     final Status status = Status.withSpinner(
       timeout: const TimeoutConfiguration().fastOperation,
       timeoutConfiguration: const TimeoutConfiguration(),
-      platform: _platform,
       stopwatch: Stopwatch(),
-      supportsColor: _terminal.supportsColor,
+      terminal: _terminal,
     );
     final List<String> showBuildSettingsCommand = <String>[
       _executable,
       '-project',
       _fileSystem.path.absolute(projectPath),
-      '-target',
-      target,
+      if (scheme != null)
+        ...<String>['-scheme', scheme],
       '-showBuildSettings',
       ...environmentVariablesAsXcodeBuildSettings(_platform)
     ];
@@ -332,10 +345,11 @@ class XcodeProjectInterpreter {
       );
       final String out = result.stdout.trim();
       return parseXcodeBuildSettings(out);
-    } catch(error) {
+    } on Exception catch (error) {
       if (error is ProcessException && error.toString().contains('timed out')) {
         BuildEvent('xcode-show-build-settings-timeout',
           command: showBuildSettingsCommand.join(' '),
+          flutterUsage: _usage,
         ).send();
       }
       _logger.printTrace('Unexpected failure to get the build settings: $error.');
@@ -345,14 +359,15 @@ class XcodeProjectInterpreter {
     }
   }
 
-  void cleanWorkspace(String workspacePath, String scheme) {
-    _processUtils.runSync(<String>[
+  Future<void> cleanWorkspace(String workspacePath, String scheme, { bool verbose = false }) async {
+    await _processUtils.run(<String>[
       _executable,
       '-workspace',
       workspacePath,
       '-scheme',
       scheme,
-      '-quiet',
+      if (!verbose)
+        '-quiet',
       'clean',
       ...environmentVariablesAsXcodeBuildSettings(_platform)
     ], workingDirectory: _fileSystem.currentDirectory.path);
@@ -370,7 +385,7 @@ class XcodeProjectInterpreter {
         if (projectFilename != null) ...<String>['-project', projectFilename],
       ],
       throwOnError: true,
-      whiteListFailures: (int c) => c == missingProjectExitCode,
+      allowedFailures: (int c) => c == missingProjectExitCode,
       workingDirectory: projectPath,
     );
     if (result.exitCode == missingProjectExitCode) {
@@ -453,17 +468,11 @@ class XcodeProjectInfo {
   final List<String> buildConfigurations;
   final List<String> schemes;
 
-  bool get definesCustomTargets => !(targets.contains('Runner') && targets.length == 1);
   bool get definesCustomSchemes => !(schemes.contains('Runner') && schemes.length == 1);
-  bool get definesCustomBuildConfigurations {
-    return !(buildConfigurations.contains('Debug') &&
-        buildConfigurations.contains('Release') &&
-        buildConfigurations.length == 2);
-  }
 
   /// The expected scheme for [buildInfo].
   static String expectedSchemeFor(BuildInfo buildInfo) {
-    return toTitleCase(buildInfo.flavor ?? 'runner');
+    return toTitleCase(buildInfo?.flavor ?? 'runner');
   }
 
   /// The expected build configuration for [buildInfo] and [scheme].

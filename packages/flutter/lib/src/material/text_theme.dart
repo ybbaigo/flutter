@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 import 'typography.dart';
-
-// Eventually we'll get rid of the deprecated members, but for now, we have to use them
-// in order to implement them.
-// ignore_for_file: deprecated_member_use_from_same_package
 
 /// Material design text theme.
 ///
@@ -32,7 +30,7 @@ import 'typography.dart';
 ///
 /// The Material Design typography scheme was significantly changed in the
 /// current (2018) version of the specification
-/// (https://material.io/design/typography).
+/// ([https://material.io/design/typography](https://material.io/design/typography)).
 ///
 /// The 2018 spec has thirteen text styles:
 /// ```
@@ -103,7 +101,7 @@ import 'typography.dart';
 ///    globally adjusted, such as the color scheme.
 ///  * <https://material.io/design/typography/>
 @immutable
-class TextTheme extends Diagnosticable {
+class TextTheme with Diagnosticable {
   /// Creates a text theme that uses the given values.
   ///
   /// Rather than creating a new text theme, consider using [Typography.black]
@@ -227,7 +225,7 @@ class TextTheme extends Diagnosticable {
   /// Used for emphasizing text that would otherwise be [bodyText2].
   final TextStyle bodyText1;
 
-  /// Used for the default text style for [Material].
+  /// The default text style for [Material].
   final TextStyle bodyText2;
 
   /// Used for auxiliary text associated with images.
@@ -325,7 +323,7 @@ class TextTheme extends Diagnosticable {
   ///
   /// This was the name used in the material design 2014 specification. The new
   /// specification calls this `body1`, and it is exposed in this API as
-  /// [textBody1].
+  /// [bodyText1].
   @Deprecated(
     'This is the term used in the 2014 version of material design. The modern term is bodyText1. '
     'This feature was deprecated after v1.13.8.'
@@ -336,9 +334,9 @@ class TextTheme extends Diagnosticable {
   ///
   /// This was the name used in the material design 2014 specification. The new
   /// specification calls this `body2`, and it is exposed in this API as
-  /// [textBody2].
+  /// [bodyText2].
   @Deprecated(
-    'This is the term used in the 2014 version of material design. The modern term is bodyText1. '
+    'This is the term used in the 2014 version of material design. The modern term is bodyText2. '
     'This feature was deprecated after v1.13.8.'
   )
   TextStyle get body1 => bodyText2;

@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:async';
+import 'dart:ui' as ui show BoxHeightStyle, BoxWidthStyle, Color;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
@@ -170,8 +173,11 @@ void main() {
 
   Offset textOffsetToPosition(WidgetTester tester, int offset) => textOffsetToBottomLeftPosition(tester, offset) + const Offset(0, -2);
 
-  setUp(() {
+  setUp(() async {
     EditableText.debugDeterministicCursor = false;
+    // Fill the clipboard so that the Paste option is available in the text
+    // selection menu.
+    await Clipboard.setData(const ClipboardData(text: 'Clipboard data'));
   });
 
   testWidgets(
@@ -1544,7 +1550,7 @@ void main() {
       await tester.tapAt(textOffsetToPosition(tester, index));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tapAt(textOffsetToPosition(tester, index));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(
         controller.selection,
         const TextSelection(baseOffset: 0, extentOffset: 7),
@@ -1584,7 +1590,7 @@ void main() {
         const TextSelection.collapsed(offset: 8, affinity: TextAffinity.downstream),
       );
       await tester.tapAt(textfieldStart + const Offset(150.0, 5.0));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // Second tap selects the word around the cursor.
       expect(
@@ -1620,7 +1626,7 @@ void main() {
       final TestGesture gesture =
          await tester.startGesture(textfieldStart + const Offset(150.0, 5.0));
       // Hold the press.
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
 
       expect(
         controller.selection,
@@ -1759,7 +1765,7 @@ void main() {
       final TestGesture gesture =
          await tester.startGesture(textfieldStart + const Offset(150.0, 5.0));
       // Hold the press.
-      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
 
       // The obscured text is treated as one word, should select all
       expect(
@@ -1845,7 +1851,7 @@ void main() {
       final Offset textfieldStart = tester.getTopLeft(find.byType(CupertinoTextField));
 
       await tester.longPressAt(textfieldStart + const Offset(50.0, 5.0));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // Collapsed cursor for iOS long press.
       expect(
@@ -1945,7 +1951,7 @@ void main() {
       expect(find.byType(CupertinoButton), findsNothing);
 
       await gesture.up();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // The selection isn't affected by the gesture lift.
       expect(
@@ -2020,7 +2026,7 @@ void main() {
     expect(find.byType(CupertinoButton), findsNothing);
 
     await gesture.up();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     // The selection isn't affected by the gesture lift.
     expect(
@@ -2075,7 +2081,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       await tester.longPressAt(textfieldStart + const Offset(100.0, 5.0));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // Plain collapsed selection at the exact tap position.
       expect(
@@ -2117,7 +2123,7 @@ void main() {
         const TextSelection.collapsed(offset: 8, affinity: TextAffinity.downstream),
       );
       await tester.tapAt(textfieldStart + const Offset(150.0, 5.0));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // Double tap selection.
       expect(
@@ -2154,7 +2160,7 @@ void main() {
         const TextSelection.collapsed(offset: 7, affinity: TextAffinity.upstream),
       );
       await tester.tapAt(textfieldStart + const Offset(50.0, 5.0));
-      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
       expect(
         controller.selection,
         const TextSelection(baseOffset: 0, extentOffset: 7),
@@ -2170,7 +2176,7 @@ void main() {
         const TextSelection.collapsed(offset: 7, affinity: TextAffinity.upstream),
       );
       await tester.tapAt(textfieldStart + const Offset(100.0, 5.0));
-      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
       expect(
         controller.selection,
         const TextSelection(baseOffset: 0, extentOffset: 7),
@@ -2185,7 +2191,7 @@ void main() {
         const TextSelection.collapsed(offset: 8, affinity: TextAffinity.downstream),
       );
       await tester.tapAt(textfieldStart + const Offset(150.0, 5.0));
-      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
       expect(
         controller.selection,
         const TextSelection(baseOffset: 8, extentOffset: 12),
@@ -2229,7 +2235,7 @@ void main() {
     );
 
     await gesture.up();
-    await tester.pump();
+    await tester.pumpAndSettle();
     // Shows toolbar.
     expect(find.byType(CupertinoButton), findsNWidgets(3));
   });
@@ -3622,7 +3628,7 @@ void main() {
                     focusNode: focusNode,
                     expands: true,
                     maxLines: null,
-                    prefix: Container(
+                    prefix: const SizedBox(
                       height: 100,
                       width: 10,
                     ),
@@ -3675,7 +3681,7 @@ void main() {
                     focusNode: focusNode,
                     expands: true,
                     maxLines: null,
-                    prefix: Container(
+                    prefix: const SizedBox(
                       height: 100,
                       width: 10,
                     ),
@@ -3729,7 +3735,7 @@ void main() {
                     focusNode: focusNode,
                     expands: true,
                     maxLines: null,
-                    prefix: Container(
+                    prefix: const SizedBox(
                       height: 100,
                       width: 10,
                     ),
@@ -3783,7 +3789,7 @@ void main() {
                     focusNode: focusNode,
                     expands: true,
                     maxLines: null,
-                    prefix: Container(
+                    prefix: const SizedBox(
                       height: 100,
                       width: 10,
                     ),
@@ -3841,7 +3847,7 @@ void main() {
 
         // Long press shows the selection menu.
         await tester.longPressAt(textOffsetToPosition(tester, 0));
-        await tester.pump();
+        await tester.pumpAndSettle();
         expect(find.text('Paste'), findsOneWidget);
       },
     );
@@ -3987,6 +3993,100 @@ void main() {
         hasEnabledState: true,
         hasTapAction: false,
       ),
+    );
+  });
+
+  testWidgets('text selection style 1', (WidgetTester tester) async {
+    final TextEditingController controller = TextEditingController(
+      text: 'Atwater Peel Sherbrooke Bonaventure\nhi\nwassssup!',
+    );
+    await tester.pumpWidget(
+       CupertinoApp(
+        home: Center(
+          child: RepaintBoundary(
+            child: Container(
+              width: 650.0,
+              height: 600.0,
+              decoration: const BoxDecoration(
+                color: Color(0xff00ff00),
+              ),
+              child: Column(
+                children: <Widget>[
+                  CupertinoTextField(
+                    key: const Key('field0'),
+                    controller: controller,
+                    style: const TextStyle(height: 4, color: ui.Color.fromARGB(100, 0, 0, 0)),
+                    toolbarOptions: const ToolbarOptions(selectAll: true),
+                    selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingTop,
+                    selectionWidthStyle: ui.BoxWidthStyle.max,
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final Offset textfieldStart = tester.getTopLeft(find.byKey(const Key('field0')));
+
+    await tester.longPressAt(textfieldStart + const Offset(50.0, 2.0));
+    await tester.pump(const Duration(milliseconds: 150));
+    // Tap the Select All button.
+    await tester.tapAt(textfieldStart + const Offset(20.0, 100.0));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await expectLater(
+      find.byType(CupertinoApp),
+      matchesGoldenFile('text_field_golden.TextSelectionStyle.1.png'),
+    );
+  });
+
+  testWidgets('text selection style 2', (WidgetTester tester) async {
+    final TextEditingController controller = TextEditingController(
+      text: 'Atwater Peel Sherbrooke Bonaventure\nhi\nwassssup!',
+    );
+    await tester.pumpWidget(
+      CupertinoApp(
+        home: Center(
+          child: RepaintBoundary(
+            child: Container(
+              width: 650.0,
+              height: 600.0,
+              decoration: const BoxDecoration(
+                color: Color(0xff00ff00),
+              ),
+              child: Column(
+                children: <Widget>[
+                  CupertinoTextField(
+                    key: const Key('field0'),
+                    controller: controller,
+                    style: const TextStyle(height: 4, color: ui.Color.fromARGB(100, 0, 0, 0)),
+                    toolbarOptions: const ToolbarOptions(selectAll: true),
+                    selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingBottom,
+                    selectionWidthStyle: ui.BoxWidthStyle.tight,
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final Offset textfieldStart = tester.getTopLeft(find.byKey(const Key('field0')));
+
+    await tester.longPressAt(textfieldStart + const Offset(50.0, 2.0));
+    await tester.pump(const Duration(milliseconds: 150));
+    // Tap the Select All button.
+    await tester.tapAt(textfieldStart + const Offset(20.0, 100.0));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await expectLater(
+      find.byType(CupertinoApp),
+      matchesGoldenFile('text_field_golden.TextSelectionStyle.2.png'),
     );
   });
 }

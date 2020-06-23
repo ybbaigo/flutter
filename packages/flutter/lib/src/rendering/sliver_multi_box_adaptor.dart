@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:vector_math/vector_math_64.dart';
@@ -578,7 +580,6 @@ abstract class RenderSliverMultiBoxAdaptor extends RenderSliver
     assert(child != null);
     assert(child.parent == this);
     final SliverMultiBoxAdaptorParentData childParentData = child.parentData as SliverMultiBoxAdaptorParentData;
-    assert(childParentData.layoutOffset != null);
     return childParentData.layoutOffset;
   }
 

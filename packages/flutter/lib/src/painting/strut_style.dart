@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/foundation.dart';
 
 import 'basic_types.dart';
@@ -285,7 +287,7 @@ import 'text_style.dart';
 /// {@end-tool}
 ///
 @immutable
-class StrutStyle extends Diagnosticable {
+class StrutStyle with Diagnosticable {
   /// Creates a strut style.
   ///
   /// The `package` argument must be non-null if the font family is defined in a

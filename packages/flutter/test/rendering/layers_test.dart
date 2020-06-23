@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -254,6 +256,21 @@ void main() {
       _getDebugInfo(ClipPathLayer(clipBehavior: Clip.antiAliasWithSaveLayer)),
       contains('clipBehavior: Clip.antiAliasWithSaveLayer'),
     );
+  });
+
+  test('PictureLayer prints picture, engine layer, and raster cache hints in debug info', () {
+    final PictureRecorder recorder = PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    canvas.drawPaint(Paint());
+    final Picture picture = recorder.endRecording();
+    final PictureLayer layer = PictureLayer(const Rect.fromLTRB(0, 0, 1, 1));
+    layer.picture = picture;
+    layer.isComplexHint = true;
+    layer.willChangeHint = false;
+    final List<String> info = _getDebugInfo(layer);
+    expect(info, contains('picture: ${describeIdentity(picture)}'));
+    expect(info, contains('engine layer: ${describeIdentity(null)}'));
+    expect(info, contains('raster cache hints: isComplex = true, willChange = false'));
   });
 
   test('mutating PictureLayer fields triggers needsAddToScene', () {

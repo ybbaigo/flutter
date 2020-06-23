@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/widgets.dart';
 
 import 'button_theme.dart';
@@ -192,7 +194,7 @@ class Stepper extends StatefulWidget {
   /// This callback which takes in a context and two functions,[onStepContinue]
   /// and [onStepCancel]. These can be used to control the stepper.
   ///
-  /// {@tool sample --template=stateless_widget_scaffold}
+  /// {@tool dartpad --template=stateless_widget_scaffold}
   /// Creates a stepper control with custom buttons.
   ///
   /// ```dart
@@ -204,7 +206,7 @@ class Stepper extends StatefulWidget {
   ///            children: <Widget>[
   ///              FlatButton(
   ///                onPressed: onStepContinue,
-  ///                child: const Text('CONTINUE'),
+  ///                child: const Text('NEXT'),
   ///              ),
   ///              FlatButton(
   ///                onPressed: onStepCancel,

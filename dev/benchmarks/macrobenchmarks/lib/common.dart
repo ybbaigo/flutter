@@ -10,3 +10,9 @@ const String kSimpleAnimationRouteName = '/simple_animation';
 const String kPictureCacheRouteName = '/picture_cache';
 const String kLargeImagesRouteName = '/large_images';
 const String kTextRouteName = '/text';
+const String kAnimatedPlaceholderRouteName = '/animated_placeholder';
+const String kColorFilterAndFadeRouteName = '/color_filter_and_fade';
+const String kFadingChildAnimationRouteName = '/fading_child_animation';
+const String kImageFilteredTransformAnimationRouteName = '/imagefiltered_transform_animation';
+
+const String kScrollableName = '/macrobenchmark_listview';

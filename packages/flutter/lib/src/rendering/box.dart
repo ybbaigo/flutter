@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:math' as math;
 import 'dart:ui' as ui show lerpDouble;
 
@@ -691,7 +693,7 @@ class BoxHitTestResult extends HitTestResult {
   /// parent don't share the same origin.
   ///
   /// ```dart
-  /// abstract class Foo extends RenderBox {
+  /// abstract class RenderFoo extends RenderBox {
   ///
   ///   final Matrix4 _effectiveTransform = Matrix4.rotationZ(50);
   ///
@@ -752,7 +754,7 @@ class BoxHitTestResult extends HitTestResult {
   ///
   /// A null value for `offset` is treated as if [Offset.zero] was provided.
   ///
-  /// Se also:
+  /// See also:
   ///
   ///  * [addWithPaintTransform], which takes a generic paint transform matrix and
   ///    documents the intended usage of this API in more detail.
@@ -789,7 +791,7 @@ class BoxHitTestResult extends HitTestResult {
   /// the child speaks a different hit test protocol then the parent and the
   /// position is not required to do the actual hit testing in that protocol.
   ///
-  /// Se also:
+  /// See also:
   ///
   ///  * [addWithPaintTransform], which accomplishes the same thing, but takes a
   ///    _paint_ transform matrix.
@@ -841,8 +843,8 @@ class BoxParentData extends ParentData {
   String toString() => 'offset=$offset';
 }
 
-/// Abstract ParentData subclass for RenderBox subclasses that want the
-/// ContainerRenderObjectMixin.
+/// Abstract [ParentData] subclass for [RenderBox] subclasses that want the
+/// [ContainerRenderObjectMixin].
 ///
 /// This is a convenience class that mixes in the relevant classes with
 /// the relevant type arguments.
@@ -1800,7 +1802,7 @@ abstract class RenderBox extends RenderObject {
           }
           if (!value._canBeUsedByParent) {
             throw FlutterError.fromParts(<DiagnosticsNode>[
-              ErrorSummary('A child\'s size was used without setting parentUsesSize.'),
+              ErrorSummary("A child's size was used without setting parentUsesSize."),
               describeForError('The following render object'),
               value._owner.describeForError('...was assigned a size obtained from its child'),
               ErrorDescription(
@@ -1927,7 +1929,6 @@ abstract class RenderBox extends RenderObject {
     assert(constraints != null);
     assert(() {
       if (!hasSize) {
-        assert(!debugNeedsLayout); // this is called in the size= setter during layout, but in that case we have a size
         DiagnosticsNode contract;
         if (sizedByParent)
           contract = ErrorDescription('Because this RenderBox has sizedByParent set to true, it must set its size in performResize().');
@@ -2110,14 +2111,14 @@ abstract class RenderBox extends RenderObject {
             ErrorSummary('Cannot hit test a render box that has never been laid out.'),
             describeForError('The hitTest() method was called on this RenderBox'),
             ErrorDescription(
-              'Unfortunately, this object\'s geometry is not known at this time, '
+              "Unfortunately, this object's geometry is not known at this time, "
               'probably because it has never been laid out. '
               'This means it cannot be accurately hit-tested.'
             ),
             ErrorHint(
               'If you are trying '
               'to perform a hit test during the layout phase itself, make sure '
-              'you only hit test nodes that have completed layout (e.g. the node\'s '
+              "you only hit test nodes that have completed layout (e.g. the node's "
               'children, after their layout() method has been called).'
             ),
           ]);
@@ -2483,7 +2484,7 @@ mixin RenderBoxContainerDefaultsMixin<ChildType extends RenderBox, ParentDataTyp
   ///  * [defaultPaint], which paints the children appropriate for this
   ///    hit-testing strategy.
   bool defaultHitTestChildren(BoxHitTestResult result, { Offset position }) {
-    // the x, y parameters have the top left of the node's box as the origin
+    // The x, y parameters have the top left of the node's box as the origin.
     ChildType child = lastChild;
     while (child != null) {
       final ParentDataType childParentData = child.parentData as ParentDataType;

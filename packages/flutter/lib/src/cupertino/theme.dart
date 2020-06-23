@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -143,7 +145,7 @@ class _InheritedCupertinoTheme extends InheritedWidget {
 ///  * [ThemeData], a Material equivalent that also configures Cupertino
 ///    styling via a [CupertinoThemeData] subclass [MaterialBasedCupertinoThemeData].
 @immutable
-class CupertinoThemeData extends Diagnosticable {
+class CupertinoThemeData with Diagnosticable {
   /// Creates a [CupertinoTheme] styling specification.
   ///
   /// Unspecified parameters default to a reasonable iOS default style.

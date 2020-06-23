@@ -5,20 +5,18 @@
 import 'package:file/file.dart';
 import 'package:file/memory.dart';
 import 'package:file_testing/file_testing.dart';
-
-import 'package:meta/meta.dart';
-import 'package:mockito/mockito.dart';
-import 'package:platform/platform.dart';
-import 'package:process/process.dart';
-
 import 'package:flutter_tools/src/android/gradle_utils.dart';
-import 'package:flutter_tools/src/base/io.dart';
-import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/io.dart' show InternetAddress, SocketException;
+import 'package:flutter_tools/src/base/io.dart';
 import 'package:flutter_tools/src/base/net.dart';
 import 'package:flutter_tools/src/base/os.dart';
+import 'package:flutter_tools/src/base/platform.dart';
+import 'package:flutter_tools/src/cache.dart';
 import 'package:flutter_tools/src/globals.dart' as globals;
+import 'package:meta/meta.dart';
+import 'package:mockito/mockito.dart';
+import 'package:process/process.dart';
 
 import '../src/common.dart';
 import '../src/context.dart';
@@ -45,7 +43,7 @@ void main() {
       // Restore locking to prevent potential side-effects in
       // tests outside this group (this option is globally shared).
       Cache.enableLocking();
-      Cache.releaseLockEarly();
+      Cache.releaseLock();
     });
 
     test('should throw when locking is not acquired', () {
@@ -62,7 +60,7 @@ void main() {
       when(mockFile.openSync(mode: anyNamed('mode'))).thenReturn(mockRandomAccessFile);
       await Cache.lock();
       Cache.checkLockAcquired();
-      Cache.releaseLockEarly();
+      Cache.releaseLock();
     }, overrides: <Type, Generator>{
       FileSystem: () => mockFileSystem,
       ProcessManager: () => FakeProcessManager.any(),
@@ -188,7 +186,7 @@ void main() {
       verifyNever(artifact1.update());
       verify(artifact2.update());
     });
-    testUsingContext('getter dyLdLibEntry concatenates the output of each artifact\'s dyLdLibEntry getter', () async {
+    testUsingContext("getter dyLdLibEntry concatenates the output of each artifact's dyLdLibEntry getter", () async {
       final IosUsbArtifacts artifact1 = MockIosUsbArtifacts();
       final IosUsbArtifacts artifact2 = MockIosUsbArtifacts();
       final IosUsbArtifacts artifact3 = MockIosUsbArtifacts();
@@ -231,7 +229,7 @@ void main() {
           null,
         });
         fail('Mock thrown exception expected');
-      } catch (e) {
+      } on Exception {
         verify(artifact1.update());
         // Don't continue when retrieval fails.
         verifyNever(artifact2.update());
@@ -264,9 +262,9 @@ void main() {
 
   test('Unstable artifacts', () {
     expect(DevelopmentArtifact.web.unstable, false);
-    expect(DevelopmentArtifact.linux.unstable, true);
-    expect(DevelopmentArtifact.macOS.unstable, true);
-    expect(DevelopmentArtifact.windows.unstable, true);
+    expect(DevelopmentArtifact.linux.unstable, false);
+    expect(DevelopmentArtifact.macOS.unstable, false);
+    expect(DevelopmentArtifact.windows.unstable, false);
     expect(DevelopmentArtifact.fuchsia.unstable, true);
     expect(DevelopmentArtifact.flutterRunner.unstable, true);
   });
@@ -372,12 +370,15 @@ void main() {
     });
 
     test('development artifact', () async {
-      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts();
+      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(mockCache);
       expect(mavenArtifacts.developmentArtifact, DevelopmentArtifact.androidMaven);
     });
 
     testUsingContext('update', () async {
-      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts();
+      final Directory cacheRoot = globals.fs.directory('/bin/cache')
+        ..createSync(recursive: true);
+      when(mockCache.getRoot()).thenReturn(cacheRoot);
+      final AndroidMavenArtifacts mavenArtifacts = AndroidMavenArtifacts(mockCache);
       expect(mavenArtifacts.isUpToDate(), isFalse);
 
       final Directory gradleWrapperDir = globals.fs.systemTempDirectory.createTempSync('flutter_cache_test_gradle_wrapper.');
@@ -420,14 +421,32 @@ void main() {
       final IosUsbArtifacts iosUsbArtifacts = IosUsbArtifacts('libimobiledevice', mockCache);
       when(mockCache.getArtifactDirectory(any)).thenReturn(globals.fs.currentDirectory);
       iosUsbArtifacts.location.createSync();
-      final File ideviceIdFile = iosUsbArtifacts.location.childFile('idevice_id')
+      final File ideviceScreenshotFile = iosUsbArtifacts.location.childFile('idevicescreenshot')
         ..createSync();
-      iosUsbArtifacts.location.childFile('ideviceinfo')
+      iosUsbArtifacts.location.childFile('idevicesyslog')
+        .createSync();
+
+      expect(iosUsbArtifacts.isUpToDateInner(), true);
+
+      ideviceScreenshotFile.deleteSync();
+
+      expect(iosUsbArtifacts.isUpToDateInner(), false);
+    }, overrides: <Type, Generator>{
+      Cache: () => mockCache,
+      FileSystem: () => MemoryFileSystem(),
+      ProcessManager: () => FakeProcessManager.any(),
+    });
+
+    testUsingContext('verifies iproxy for usbmuxd in isUpToDateInner', () async {
+      final IosUsbArtifacts iosUsbArtifacts = IosUsbArtifacts('usbmuxd', mockCache);
+      when(mockCache.getArtifactDirectory(any)).thenReturn(globals.fs.currentDirectory);
+      iosUsbArtifacts.location.createSync();
+      final File iproxy = iosUsbArtifacts.location.childFile('iproxy')
         ..createSync();
 
       expect(iosUsbArtifacts.isUpToDateInner(), true);
 
-      ideviceIdFile.deleteSync();
+      iproxy.deleteSync();
 
       expect(iosUsbArtifacts.isUpToDateInner(), false);
     }, overrides: <Type, Generator>{
@@ -499,33 +518,111 @@ void main() {
   testUsingContext('FontSubset artifacts on linux', () {
     final MockCache mockCache = MockCache();
     final FontSubsetArtifacts artifacts = FontSubsetArtifacts(mockCache);
+    when(mockCache.includeAllPlatforms).thenReturn(false);
     expect(artifacts.getBinaryDirs(), <List<String>>[<String>['linux-x64', 'linux-x64/font-subset.zip']]);
   }, overrides: <Type, Generator> {
-    Platform: () => FakePlatform()..operatingSystem = 'linux',
+    Platform: () => FakePlatform(operatingSystem: 'linux'),
   });
 
   testUsingContext('FontSubset artifacts on windows', () {
     final MockCache mockCache = MockCache();
     final FontSubsetArtifacts artifacts = FontSubsetArtifacts(mockCache);
+    when(mockCache.includeAllPlatforms).thenReturn(false);
     expect(artifacts.getBinaryDirs(), <List<String>>[<String>['windows-x64', 'windows-x64/font-subset.zip']]);
   }, overrides: <Type, Generator> {
-    Platform: () => FakePlatform()..operatingSystem = 'windows',
+    Platform: () => FakePlatform(operatingSystem: 'windows'),
   });
 
   testUsingContext('FontSubset artifacts on macos', () {
     final MockCache mockCache = MockCache();
     final FontSubsetArtifacts artifacts = FontSubsetArtifacts(mockCache);
+    when(mockCache.includeAllPlatforms).thenReturn(false);
     expect(artifacts.getBinaryDirs(), <List<String>>[<String>['darwin-x64', 'darwin-x64/font-subset.zip']]);
   }, overrides: <Type, Generator> {
-    Platform: () => FakePlatform()..operatingSystem = 'macos',
+    Platform: () => FakePlatform(operatingSystem: 'macos'),
   });
 
   testUsingContext('FontSubset artifacts on fuchsia', () {
     final MockCache mockCache = MockCache();
     final FontSubsetArtifacts artifacts = FontSubsetArtifacts(mockCache);
+    when(mockCache.includeAllPlatforms).thenReturn(false);
     expect(() => artifacts.getBinaryDirs(), throwsToolExit(message: 'Unsupported operating system: ${globals.platform.operatingSystem}'));
   }, overrides: <Type, Generator> {
-    Platform: () => FakePlatform()..operatingSystem = 'fuchsia',
+    Platform: () => FakePlatform(operatingSystem: 'fuchsia'),
+  });
+
+  testUsingContext('FontSubset artifacts for all platforms', () {
+    final MockCache mockCache = MockCache();
+    final FontSubsetArtifacts artifacts = FontSubsetArtifacts(mockCache);
+    when(mockCache.includeAllPlatforms).thenReturn(true);
+    expect(artifacts.getBinaryDirs(), <List<String>>[
+        <String>['darwin-x64', 'darwin-x64/font-subset.zip'],
+        <String>['linux-x64', 'linux-x64/font-subset.zip'],
+        <String>['windows-x64', 'windows-x64/font-subset.zip'],
+    ]);
+  }, overrides: <Type, Generator> {
+    Platform: () => FakePlatform(operatingSystem: 'fuchsia'),
+  });
+
+  testUsingContext('macOS desktop artifacts ignore filtering when requested', () {
+    final MockCache mockCache = MockCache();
+    final MacOSEngineArtifacts artifacts = MacOSEngineArtifacts(mockCache);
+    when(mockCache.includeAllPlatforms).thenReturn(false);
+    when(mockCache.platformOverrideArtifacts).thenReturn(<String>{'macos'});
+
+    expect(artifacts.getBinaryDirs(), isNotEmpty);
+  }, overrides: <Type, Generator> {
+    Platform: () => FakePlatform(operatingSystem: 'linux'),
+  });
+
+  testWithoutContext('Windows desktop artifacts ignore filtering when requested', () {
+    final MockCache mockCache = MockCache();
+    final WindowsEngineArtifacts artifacts = WindowsEngineArtifacts(
+      mockCache,
+      platform: FakePlatform(operatingSystem: 'linux'),
+    );
+    when(mockCache.includeAllPlatforms).thenReturn(false);
+    when(mockCache.platformOverrideArtifacts).thenReturn(<String>{'windows'});
+
+    expect(artifacts.getBinaryDirs(), isNotEmpty);
+  });
+
+  testWithoutContext('Windows desktop artifacts include profile and release artifacts', () {
+    final MockCache mockCache = MockCache();
+    final WindowsEngineArtifacts artifacts = WindowsEngineArtifacts(
+      mockCache,
+      platform: FakePlatform(operatingSystem: 'windows'),
+    );
+
+    expect(artifacts.getBinaryDirs(), containsAll(<Matcher>[
+      contains(contains('profile')),
+      contains(contains('release')),
+    ]));
+  });
+
+  testWithoutContext('Linux desktop artifacts ignore filtering when requested', () {
+    final MockCache mockCache = MockCache();
+    final LinuxEngineArtifacts artifacts = LinuxEngineArtifacts(
+      mockCache,
+      platform: FakePlatform(operatingSystem: 'macos'),
+    );
+    when(mockCache.includeAllPlatforms).thenReturn(false);
+    when(mockCache.platformOverrideArtifacts).thenReturn(<String>{'linux'});
+
+    expect(artifacts.getBinaryDirs(), isNotEmpty);
+  });
+
+  testWithoutContext('Linux desktop artifacts include profile and release artifacts', () {
+    final MockCache mockCache = MockCache();
+    final LinuxEngineArtifacts artifacts = LinuxEngineArtifacts(
+      mockCache,
+      platform: FakePlatform(operatingSystem: 'linux'),
+    );
+
+    expect(artifacts.getBinaryDirs(), containsAll(<Matcher>[
+      contains(contains('profile')),
+      contains(contains('release')),
+    ]));
   });
 }
 

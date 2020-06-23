@@ -9,7 +9,6 @@ import '../cache.dart';
 import '../features.dart';
 import '../globals.dart' as globals;
 import '../runner/flutter_command.dart';
-import '../version.dart';
 
 class PrecacheCommand extends FlutterCommand {
   PrecacheCommand({bool verboseHelp = false}) {
@@ -53,7 +52,7 @@ class PrecacheCommand extends FlutterCommand {
   final String name = 'precache';
 
   @override
-  final String description = 'Populates the Flutter tool\'s cache of binary artifacts.';
+  final String description = "Populates the Flutter tool's cache of binary artifacts.";
 
   @override
   bool get shouldUpdateCache => false;
@@ -66,6 +65,33 @@ class PrecacheCommand extends FlutterCommand {
       'android_internal_build',
     ]
   };
+
+  /// Returns a reverse mapping of _expandedArtifacts, from child artifact name
+  /// to umbrella name.
+  Map<String, String> _umbrellaForArtifactMap() {
+    return <String, String>{
+      for (final MapEntry<String, List<String>> entry in _expandedArtifacts.entries)
+        for (final String childArtifactName in entry.value)
+          childArtifactName: entry.key
+    };
+  }
+
+  /// Returns the name of all artifacts that were explicitly chosen via flags.
+  ///
+  /// If an umbrella is chosen, its children will be included as well.
+  Set<String> _explicitArtifactSelections() {
+    final Map<String, String> umbrellaForArtifact = _umbrellaForArtifactMap();
+    final Set<String> selections = <String>{};
+    bool explicitlySelected(String name) => boolArg(name) && argResults.wasParsed(name);
+    for (final DevelopmentArtifact artifact in DevelopmentArtifact.values) {
+      final String umbrellaName = umbrellaForArtifact[artifact.name];
+      if (explicitlySelected(artifact.name) ||
+          (umbrellaName != null && explicitlySelected(umbrellaName))) {
+        selections.add(artifact.name);
+      }
+    }
+    return selections;
+  }
 
   @override
   Future<void> validateCommand() {
@@ -85,41 +111,32 @@ class PrecacheCommand extends FlutterCommand {
 
   @override
   Future<FlutterCommandResult> runCommand() async {
-    if (boolArg('all-platforms')) {
+    // Re-lock the cache.
+    if (globals.platform.environment['FLUTTER_ALREADY_LOCKED'] != 'true') {
+      await Cache.lock();
+    }
+
+    final bool includeAllPlatforms = boolArg('all-platforms');
+    if (includeAllPlatforms) {
       globals.cache.includeAllPlatforms = true;
     }
     if (boolArg('use-unsigned-mac-binaries')) {
       globals.cache.useUnsignedMacBinaries = true;
     }
+    globals.cache.platformOverrideArtifacts = _explicitArtifactSelections();
+    final Map<String, String> umbrellaForArtifact = _umbrellaForArtifactMap();
     final Set<DevelopmentArtifact> requiredArtifacts = <DevelopmentArtifact>{};
     for (final DevelopmentArtifact artifact in DevelopmentArtifact.values) {
       // Don't include unstable artifacts on stable branches.
-      if (!FlutterVersion.instance.isMaster && artifact.unstable) {
+      if (!globals.flutterVersion.isMaster && artifact.unstable) {
         continue;
       }
       if (artifact.feature != null && !featureFlags.isEnabled(artifact.feature)) {
         continue;
       }
 
-      bool expandedArtifactProcessed = false;
-      _expandedArtifacts.forEach((String umbrellaName, List<String> childArtifactNames) {
-        if (!childArtifactNames.contains(artifact.name)) {
-          return;
-        }
-        expandedArtifactProcessed = true;
-
-        // Expanded artifacts options are true by default.
-        // Explicitly ignore them if umbrella name is excluded.
-        // Example: --no-android [--android_gen_snapshot]
-        if (!boolArg(umbrellaName)) {
-          return;
-        }
-
-        // Example: --android [--android_gen_snapshot]
-        requiredArtifacts.add(artifact);
-      });
-
-      if (!expandedArtifactProcessed && boolArg(artifact.name)) {
+      final String argumentName = umbrellaForArtifact[artifact.name] ?? artifact.name;
+      if (includeAllPlatforms || boolArg(argumentName)) {
         requiredArtifacts.add(artifact);
       }
     }

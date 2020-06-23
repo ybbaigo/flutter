@@ -94,8 +94,7 @@ class ColdRunner extends ResidentRunner {
       if (device.vmService == null) {
         continue;
       }
-      device.initLogReader();
-      await device.refreshViews();
+      await device.initLogReader();
       globals.printTrace('Connected to ${device.device.name}');
     }
 
@@ -130,24 +129,19 @@ class ColdRunner extends ResidentRunner {
   }) async {
     _didAttach = true;
     try {
-      await connectToServiceProtocol();
-    } catch (error) {
+      await connectToServiceProtocol(
+        getSkSLMethod: writeSkSL,
+      );
+    } on Exception catch (error) {
       globals.printError('Error connecting to the service protocol: $error');
-      // https://github.com/flutter/flutter/issues/33050
-      // TODO(blasten): Remove this check once https://issuetracker.google.com/issues/132325318 has been fixed.
-      if (await hasDeviceRunningAndroidQ(flutterDevices) &&
-          error.toString().contains(kAndroidQHttpConnectionClosedExp)) {
-        globals.printStatus('🔨 If you are using an emulator running Android Q Beta, consider using an emulator running API level 29 or lower.');
-        globals.printStatus('Learn more about the status of this issue on https://issuetracker.google.com/issues/132325318');
-      }
       return 2;
     }
     for (final FlutterDevice device in flutterDevices) {
-      device.initLogReader();
+      await device.initLogReader();
     }
-    await refreshViews();
     for (final FlutterDevice device in flutterDevices) {
-      for (final FlutterView view in device.views) {
+      final List<FlutterView> views = await device.vmService.getFlutterViews();
+      for (final FlutterView view in views) {
         globals.printTrace('Connected to $view.');
       }
     }
@@ -189,6 +183,7 @@ class ColdRunner extends ResidentRunner {
     if (_didAttach) {
       commandHelp.d.print();
     }
+    commandHelp.c.print();
     commandHelp.q.print();
     for (final FlutterDevice device in flutterDevices) {
       final String dname = device.device.name;
@@ -207,7 +202,7 @@ class ColdRunner extends ResidentRunner {
     for (final FlutterDevice device in flutterDevices) {
       // If we're running in release mode, stop the app using the device logic.
       if (device.vmService == null) {
-        await device.device.stopApp(device.package);
+        await device.device.stopApp(device.package, userIdentifier: device.userIdentifier);
       }
     }
     await super.preExit();

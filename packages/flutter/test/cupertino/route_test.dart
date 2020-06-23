@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -502,6 +504,184 @@ void main() {
     expect(tester.getTopLeft(find.byType(Placeholder)).dy, closeTo(600.0, 0.1));
   });
 
+  Future<void> testParallax(WidgetTester tester, {@required bool fromFullscreenDialog}) async {
+    await tester.pumpWidget(
+      CupertinoApp(
+        onGenerateRoute: (RouteSettings settings) => CupertinoPageRoute<void>(
+          fullscreenDialog: fromFullscreenDialog,
+          settings: settings,
+          builder: (BuildContext context) {
+            return Column(
+              children: <Widget>[
+                const Placeholder(),
+                CupertinoButton(
+                  child: const Text('Button'),
+                  onPressed: () {
+                    Navigator.push<void>(context, CupertinoPageRoute<void>(
+                      builder: (BuildContext context) {
+                        return CupertinoButton(
+                          child: const Text('Close'),
+                          onPressed: () {
+                            Navigator.pop<void>(context);
+                          },
+                        );
+                      },
+                    ));
+                  },
+                ),
+              ],
+            );
+          }
+        ),
+      ),
+    );
+
+    // Enter animation.
+    await tester.tap(find.text('Button'));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(0.0, 0.1));
+    await tester.pump();
+
+    // We use a higher number of intervals since the animation has to scale the
+    // entire screen.
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-70.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-137.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-192.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-227.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-246.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-255.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-260.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-264.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-266.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-267.0, 1.0));
+
+    // Exit animation
+    await tester.tap(find.text('Button'));
+    await tester.pump();
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-198.0, 1.0));
+
+    await tester.pump(const Duration(milliseconds: 360));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(-0.0, 1.0));
+  }
+
+  testWidgets('CupertinoPageRoute has parallax when non fullscreenDialog route is pushed on top', (WidgetTester tester) async {
+    await testParallax(tester, fromFullscreenDialog: false);
+  });
+
+  testWidgets('FullscreenDialog CupertinoPageRoute has parallax when non fullscreenDialog route is pushed on top', (WidgetTester tester) async {
+    await testParallax(tester, fromFullscreenDialog: true);
+  });
+
+  Future<void> testNoParallax(WidgetTester tester, {@required bool fromFullscreenDialog}) async{
+    await tester.pumpWidget(
+      CupertinoApp(
+        onGenerateRoute: (RouteSettings settings) => CupertinoPageRoute<void>(
+          fullscreenDialog: fromFullscreenDialog,
+          builder: (BuildContext context) {
+            return Column(
+              children: <Widget>[
+                const Placeholder(),
+                CupertinoButton(
+                  child: const Text('Button'),
+                  onPressed: () {
+                    Navigator.push<void>(context, CupertinoPageRoute<void>(
+                      fullscreenDialog: true,
+                      builder: (BuildContext context) {
+                        return CupertinoButton(
+                          child: const Text('Close'),
+                          onPressed: () {
+                            Navigator.pop<void>(context);
+                          },
+                        );
+                      },
+                    ));
+                  },
+                ),
+              ],
+            );
+          }
+        ),
+      ),
+    );
+
+    // Enter animation.
+    await tester.tap(find.text('Button'));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, closeTo(0.0, 0.1));
+    await tester.pump();
+
+    // We use a higher number of intervals since the animation has to scale the
+    // entire screen.
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    // Exit animation
+    await tester.tap(find.text('Button'));
+    await tester.pump();
+
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 360));
+    expect(tester.getTopLeft(find.byType(Placeholder)).dx, 0.0);
+  }
+
+  testWidgets('CupertinoPageRoute has no parallax when fullscreenDialog route is pushed on top', (WidgetTester tester) async {
+    await testNoParallax(tester, fromFullscreenDialog: false);
+  });
+
+  testWidgets('FullscreenDialog CupertinoPageRoute has no parallax when fullscreenDialog route is pushed on top', (WidgetTester tester) async {
+    await testNoParallax(tester, fromFullscreenDialog: true);
+  });
+
   testWidgets('Animated push/pop is not linear', (WidgetTester tester) async {
     await tester.pumpWidget(
       const CupertinoApp(
@@ -953,6 +1133,76 @@ void main() {
 
     expect(rootObserver.popupCount, 1);
     expect(nestedObserver.popupCount, 0);
+  });
+
+  testWidgets('back swipe to screen edges does not dismiss the hero animation', (WidgetTester tester) async {
+    final GlobalKey<NavigatorState> navigator = GlobalKey<NavigatorState>();
+    final UniqueKey container = UniqueKey();
+    await tester.pumpWidget(CupertinoApp(
+      navigatorKey: navigator,
+      routes: <String, WidgetBuilder>{
+        '/': (BuildContext context) {
+          return CupertinoPageScaffold(
+            child: Center(
+              child: Hero(
+                tag: 'tag',
+                transitionOnUserGestures: true,
+                child: Container(key: container, height: 150.0, width: 150.0)
+              ),
+            )
+          );
+        },
+        '/page2': (BuildContext context) {
+          return CupertinoPageScaffold(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(100.0, 0.0, 0.0, 0.0),
+                child: Hero(
+                  tag: 'tag',
+                  transitionOnUserGestures: true,
+                  child: Container(key: container, height: 150.0, width: 150.0)
+                )
+              ),
+            )
+          );
+        }
+      },
+    ));
+
+    RenderBox box = tester.renderObject(find.byKey(container)) as RenderBox;
+    final double initialPosition = box.localToGlobal(Offset.zero).dx;
+
+    navigator.currentState.pushNamed('/page2');
+    await tester.pumpAndSettle();
+    box = tester.renderObject(find.byKey(container)) as RenderBox;
+    final double finalPosition = box.localToGlobal(Offset.zero).dx;
+
+    final TestGesture gesture = await tester.startGesture(const Offset(5, 300));
+    await gesture.moveBy(const Offset(200, 0));
+    await tester.pump();
+    box = tester.renderObject(find.byKey(container)) as RenderBox;
+    final double firstPosition = box.localToGlobal(Offset.zero).dx;
+    // Checks the hero is in-transit.
+    expect(finalPosition, greaterThan(firstPosition));
+    expect(firstPosition, greaterThan(initialPosition));
+
+    // Goes back to final position.
+    await gesture.moveBy(const Offset(-200, 0));
+    await tester.pump();
+    box = tester.renderObject(find.byKey(container)) as RenderBox;
+    final double secondPosition = box.localToGlobal(Offset.zero).dx;
+    // There will be a small difference.
+    expect(finalPosition - secondPosition, lessThan(0.001));
+
+    await gesture.moveBy(const Offset(400, 0));
+    await tester.pump();
+    box = tester.renderObject(find.byKey(container)) as RenderBox;
+    final double thirdPosition = box.localToGlobal(Offset.zero).dx;
+    // Checks the hero is still in-transit and moves further away from the first
+    // position.
+    expect(finalPosition, greaterThan(thirdPosition));
+    expect(thirdPosition, greaterThan(initialPosition));
+    expect(firstPosition, greaterThan(thirdPosition));
   });
 
   testWidgets('showCupertinoModalPopup uses nested navigator if useRootNavigator is false', (WidgetTester tester) async {

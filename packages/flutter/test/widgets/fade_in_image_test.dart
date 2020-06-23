@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -209,6 +211,28 @@ Future<void> main() async {
       expect(findFadeInImage(tester).state, same(state));
     });
 
+    testWidgets('does not keep the placeholder in the tree if it is invisible', (WidgetTester tester) async {
+      final TestImageProvider placeholderProvider = TestImageProvider(placeholderImage);
+      final TestImageProvider imageProvider = TestImageProvider(targetImage);
+
+      await tester.pumpWidget(FadeInImage(
+        placeholder: placeholderProvider,
+        image: imageProvider,
+        fadeOutDuration: animationDuration,
+        fadeInDuration: animationDuration,
+        excludeFromSemantics: true,
+      ));
+
+      placeholderProvider.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Image), findsNWidgets(2));
+
+      imageProvider.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(Image), findsOneWidget);
+    });
+
     testWidgets('re-fades in the image when the target image is updated', (WidgetTester tester) async {
       final TestImageProvider placeholderProvider = TestImageProvider(placeholderImage);
       final TestImageProvider imageProvider = TestImageProvider(targetImage);
@@ -251,7 +275,7 @@ Future<void> main() async {
       expect(findFadeInImage(tester).target.opacity, moreOrLessEquals(1));
     });
 
-    testWidgets('doesn\'t interrupt in-progress animation when animation values are updated', (WidgetTester tester) async {
+    testWidgets("doesn't interrupt in-progress animation when animation values are updated", (WidgetTester tester) async {
       final TestImageProvider placeholderProvider = TestImageProvider(placeholderImage);
       final TestImageProvider imageProvider = TestImageProvider(targetImage);
 
@@ -285,7 +309,7 @@ Future<void> main() async {
       expect(findFadeInImage(tester).target.opacity, moreOrLessEquals(1));
     });
 
-    group(ImageProvider, () {
+    group('ImageProvider', () {
 
       testWidgets('memory placeholder cacheWidth and cacheHeight is passed through', (WidgetTester tester) async {
         final Uint8List testBytes = Uint8List.fromList(kTransparentImage);

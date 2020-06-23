@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:async';
 import 'dart:ui' as ui show Image, Codec, FrameInfo;
 import 'dart:ui' show hashValues;
@@ -159,7 +161,7 @@ typedef ImageErrorListener = void Function(dynamic exception, StackTrace stackTr
 ///  * [ImageChunkListener], the means by which callers get notified of
 ///    these events.
 @immutable
-class ImageChunkEvent extends Diagnosticable {
+class ImageChunkEvent with Diagnosticable {
   /// Creates a new chunk event.
   const ImageChunkEvent({
     @required this.cumulativeBytesLoaded,
@@ -203,11 +205,16 @@ class ImageChunkEvent extends Diagnosticable {
 ///
 /// ImageStream objects are backed by [ImageStreamCompleter] objects.
 ///
+/// The [ImageCache] will consider an image to be live until the listener count
+/// drops to zero after adding at least one listener. The
+/// [addOnLastListenerRemovedCallback] method is used for tracking this
+/// information.
+///
 /// See also:
 ///
 ///  * [ImageProvider], which has an example that includes the use of an
 ///    [ImageStream] in a [Widget].
-class ImageStream extends Diagnosticable {
+class ImageStream with Diagnosticable {
   /// Create an initially unbound image stream.
   ///
   /// Once an [ImageStreamCompleter] is available, call [setCompleter].
@@ -319,7 +326,7 @@ class ImageStream extends Diagnosticable {
 /// [ImageStreamListener] objects are rarely constructed directly. Generally, an
 /// [ImageProvider] subclass will return an [ImageStream] and automatically
 /// configure it with the right [ImageStreamCompleter] when possible.
-abstract class ImageStreamCompleter extends Diagnosticable {
+abstract class ImageStreamCompleter with Diagnosticable {
   final List<ImageStreamListener> _listeners = <ImageStreamListener>[];
   ImageInfo _currentImage;
   FlutterErrorDetails _currentError;
@@ -340,6 +347,7 @@ abstract class ImageStreamCompleter extends Diagnosticable {
   /// is false after calling `super.removeListener()`, and if so, stopping that
   /// same work.
   @protected
+  @visibleForTesting
   bool get hasListeners => _listeners.isNotEmpty;
 
   /// Adds a listener callback that is called whenever a new concrete [ImageInfo]
@@ -391,6 +399,30 @@ abstract class ImageStreamCompleter extends Diagnosticable {
         break;
       }
     }
+    if (_listeners.isEmpty) {
+      for (final VoidCallback callback in _onLastListenerRemovedCallbacks) {
+        callback();
+      }
+      _onLastListenerRemovedCallbacks.clear();
+    }
+  }
+
+  final List<VoidCallback> _onLastListenerRemovedCallbacks = <VoidCallback>[];
+
+  /// Adds a callback to call when [removeListener] results in an empty
+  /// list of listeners.
+  ///
+  /// This callback will never fire if [removeListener] is never called.
+  void addOnLastListenerRemovedCallback(VoidCallback callback) {
+    assert(callback != null);
+    _onLastListenerRemovedCallbacks.add(callback);
+  }
+
+  /// Removes a callback previously supplied to
+  /// [addOnLastListenerRemovedCallback].
+  void removeOnLastListenerRemovedCallback(VoidCallback callback) {
+    assert(callback != null);
+    _onLastListenerRemovedCallbacks.remove(callback);
   }
 
   /// Calls all the registered listeners to notify them of a new image.
@@ -482,6 +514,23 @@ abstract class ImageStreamCompleter extends Diagnosticable {
             ),
           );
         }
+      }
+    }
+  }
+
+  /// Calls all the registered [ImageChunkListener]s (listeners with an
+  /// [ImageStreamListener.onChunk] specified) to notify them of a new
+  /// [ImageChunkEvent].
+  @protected
+  void reportImageChunkEvent(ImageChunkEvent event){
+    if (hasListeners) {
+      // Make a copy to allow for concurrent modification.
+      final List<ImageChunkListener> localListeners = _listeners
+          .map<ImageChunkListener>((ImageStreamListener listener) => listener.onChunk)
+          .where((ImageChunkListener chunkListener) => chunkListener != null)
+          .toList();
+      for (final ImageChunkListener listener in localListeners) {
+        listener(event);
       }
     }
   }
@@ -596,19 +645,8 @@ class MultiFrameImageStreamCompleter extends ImageStreamCompleter {
       );
     });
     if (chunkEvents != null) {
-      chunkEvents.listen(
-        (ImageChunkEvent event) {
-          if (hasListeners) {
-            // Make a copy to allow for concurrent modification.
-            final List<ImageChunkListener> localListeners = _listeners
-                .map<ImageChunkListener>((ImageStreamListener listener) => listener.onChunk)
-                .where((ImageChunkListener chunkListener) => chunkListener != null)
-                .toList();
-            for (final ImageChunkListener listener in localListeners) {
-              listener(event);
-            }
-          }
-        }, onError: (dynamic error, StackTrace stack) {
+      chunkEvents.listen(reportImageChunkEvent,
+        onError: (dynamic error, StackTrace stack) {
           reportError(
             context: ErrorDescription('loading an image'),
             exception: error,

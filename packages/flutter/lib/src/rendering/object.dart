@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:developer';
 import 'dart:ui' as ui show PictureRecorder;
 
@@ -171,7 +173,7 @@ class PaintingContext extends ClipContext {
   void paintChild(RenderObject child, Offset offset) {
     assert(() {
       if (debugProfilePaintsEnabled)
-        Timeline.startSync('${child.runtimeType}', arguments: timelineWhitelistArguments);
+        Timeline.startSync('${child.runtimeType}', arguments: timelineArgumentsIndicatingLandmarkEvent);
       if (debugOnProfilePaint != null)
         debugOnProfilePaint(child);
       return true;
@@ -581,8 +583,7 @@ class PaintingContext extends ClipContext {
         ..save()
         ..transform(effectiveTransform.storage);
       painter(this, offset);
-      canvas
-        ..restore();
+      canvas.restore();
       return null;
     }
   }
@@ -872,7 +873,7 @@ class PipelineOwner {
   /// See [RendererBinding] for an example of how this function is used.
   void flushLayout() {
     if (!kReleaseMode) {
-      Timeline.startSync('Layout', arguments: timelineWhitelistArguments);
+      Timeline.startSync('Layout', arguments: timelineArgumentsIndicatingLandmarkEvent);
     }
     assert(() {
       _debugDoingLayout = true;
@@ -964,7 +965,7 @@ class PipelineOwner {
   /// See [RendererBinding] for an example of how this function is used.
   void flushPaint() {
     if (!kReleaseMode) {
-      Timeline.startSync('Paint', arguments: timelineWhitelistArguments);
+      Timeline.startSync('Paint', arguments: timelineArgumentsIndicatingLandmarkEvent);
     }
     assert(() {
       _debugDoingPaint = true;
@@ -1584,10 +1585,13 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
     if (_relayoutBoundary != this) {
       _relayoutBoundary = null;
       _needsLayout = true;
-      visitChildren((RenderObject child) {
-        child._cleanRelayoutBoundary();
-      });
+      visitChildren(_cleanChildRelayoutBoundary);
     }
+  }
+
+  // Reduces closure allocation for visitChildren use cases.
+  static void _cleanChildRelayoutBoundary(RenderObject child) {
+    child._cleanRelayoutBoundary();
   }
 
   /// Bootstrap the rendering pipeline by scheduling the very first layout.
@@ -1683,7 +1687,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
           final String problemFunction = (targetFrameMatch != null && targetFrameMatch.groupCount > 0) ? targetFrameMatch.group(1) : stack[targetFrame].trim();
           // TODO(jacobr): this case is similar to displaying a single stack frame.
           yield ErrorDescription(
-            'These invalid constraints were provided to $runtimeType\'s layout() '
+            "These invalid constraints were provided to $runtimeType's layout() "
             'function by the following function, which probably computed the '
             'invalid constraints in question:\n'
             '  $problemFunction'
@@ -1724,9 +1728,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
       // The local relayout boundary has changed, must notify children in case
       // they also need updating. Otherwise, they will be confused about what
       // their actual relayout boundary is later.
-      visitChildren((RenderObject child) {
-        child._cleanRelayoutBoundary();
-      });
+      visitChildren(_cleanChildRelayoutBoundary);
     }
     _relayoutBoundary = relayoutBoundary;
     assert(!_debugMutationsLocked);
@@ -1917,6 +1919,8 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   /// the framework.
   ///
   /// Warning: This getter must not change value over the lifetime of this object.
+  ///
+  /// See [RepaintBoundary] for more information about how repaint boundaries function.
   bool get isRepaintBoundary => false;
 
   /// Called, in checked mode, if [isRepaintBoundary] is true, when either the
@@ -2480,15 +2484,13 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   /// render objects in production, obtain a [SemanticsHandle] from
   /// [PipelineOwner.ensureSemantics].
   ///
-  /// Only valid when asserts are enabled. In release builds, always returns
+  /// Only valid in debug and profile mode. In release builds, always returns
   /// null.
   SemanticsNode get debugSemantics {
-    SemanticsNode result;
-    assert(() {
-      result = _semantics;
-      return true;
-    }());
-    return result;
+    if (!kReleaseMode) {
+      return _semantics;
+    }
+    return null;
   }
 
   /// Removes all semantics from this render object and its descendants.
@@ -2692,7 +2694,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   /// invisible).
   ///
   /// The default implementation mirrors the behavior of
-  /// [visitChildren()] (which is supposed to walk all the children).
+  /// [visitChildren] (which is supposed to walk all the children).
   void visitChildrenForSemantics(RenderObjectVisitor visitor) {
     visitChildren(visitor);
   }
@@ -2772,7 +2774,7 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
   }
 
   @override
-  String toString({ DiagnosticLevel minLevel = DiagnosticLevel.debug }) => toStringShort();
+  String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) => toStringShort();
 
   /// Returns a description of the tree rooted at this node.
   /// If the prefix argument is provided, then every line in the output
@@ -2895,7 +2897,11 @@ abstract class RenderObject extends AbstractNode with DiagnosticableTreeMixin im
 
 /// Generic mixin for render objects with one child.
 ///
-/// Provides a child model for a render object subclass that has a unique child.
+/// Provides a child model for a render object subclass that has
+/// a unique child, which is accessible via the [child] getter.
+///
+/// This mixin is typically used to implement render objects created
+/// in a [SingleChildRenderObjectWidget].
 mixin RenderObjectWithChildMixin<ChildType extends RenderObject> on RenderObject {
 
   /// Checks whether the given render object has the correct [runtimeType] to be
@@ -2982,6 +2988,11 @@ mixin RenderObjectWithChildMixin<ChildType extends RenderObject> on RenderObject
 }
 
 /// Parent data to support a doubly-linked list of children.
+///
+/// The children can be traversed using [nextSibling] or [previousSibling],
+/// which can be called on the parent data of the render objects
+/// obtained via [ContainerRenderObjectMixin.firstChild] or
+/// [ContainerRenderObjectMixin.lastChild].
 mixin ContainerParentDataMixin<ChildType extends RenderObject> on ParentData {
   /// The previous sibling in the parent's child list.
   ChildType previousSibling;
@@ -3001,6 +3012,20 @@ mixin ContainerParentDataMixin<ChildType extends RenderObject> on ParentData {
 ///
 /// Provides a child model for a render object subclass that has a doubly-linked
 /// list of children.
+///
+/// The [ChildType] specifies the type of the children (extending [RenderObject]),
+/// e.g. [RenderBox].
+///
+/// [ParentDataType] stores parent container data on its child render objects.
+/// It must extend [ContainerParentDataMixin], which provides the interface
+/// for visiting children. This data is populated by
+/// [RenderObject.setupParentData] implemented by the class using this mixin.
+///
+/// When using [RenderBox] as the child type, you will usually want to make use of
+/// [RenderBoxContainerDefaultsMixin] and extend [ContainerBoxParentData] for the
+/// parent data.
+///
+/// Moreover, this is a required mixin for render objects returned to [MultiChildRenderObjectWidget].
 mixin ContainerRenderObjectMixin<ChildType extends RenderObject, ParentDataType extends ContainerParentDataMixin<ChildType>> on RenderObject {
   bool _debugUltimatePreviousSiblingOf(ChildType child, { ChildType equals }) {
     ParentDataType childParentData = child.parentData as ParentDataType;

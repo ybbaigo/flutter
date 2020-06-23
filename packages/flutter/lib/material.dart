@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 /// Flutter widgets implementing Material Design.
 ///
 /// To use, import `package:flutter/material.dart`.
@@ -28,6 +30,7 @@ export 'src/material/banner_theme.dart';
 export 'src/material/bottom_app_bar.dart';
 export 'src/material/bottom_app_bar_theme.dart';
 export 'src/material/bottom_navigation_bar.dart';
+export 'src/material/bottom_navigation_bar_theme.dart';
 export 'src/material/bottom_sheet.dart';
 export 'src/material/bottom_sheet_theme.dart';
 export 'src/material/button.dart';
@@ -46,7 +49,6 @@ export 'src/material/colors.dart';
 export 'src/material/constants.dart';
 export 'src/material/data_table.dart';
 export 'src/material/data_table_source.dart';
-export 'src/material/date_picker.dart';
 export 'src/material/debug.dart';
 export 'src/material/dialog.dart';
 export 'src/material/dialog_theme.dart';
@@ -82,10 +84,13 @@ export 'src/material/material_button.dart';
 export 'src/material/material_localizations.dart';
 export 'src/material/material_state.dart';
 export 'src/material/mergeable_material.dart';
+export 'src/material/navigation_rail.dart';
+export 'src/material/navigation_rail_theme.dart';
 export 'src/material/outline_button.dart';
 export 'src/material/page.dart';
 export 'src/material/page_transitions_theme.dart';
 export 'src/material/paginated_data_table.dart';
+export 'src/material/pickers/pickers.dart';
 export 'src/material/popup_menu.dart';
 export 'src/material/popup_menu_theme.dart';
 export 'src/material/progress_indicator.dart';
@@ -119,6 +124,7 @@ export 'src/material/theme.dart';
 export 'src/material/theme_data.dart';
 export 'src/material/time.dart';
 export 'src/material/time_picker.dart';
+export 'src/material/time_picker_theme.dart';
 export 'src/material/toggle_buttons.dart';
 export 'src/material/toggle_buttons_theme.dart';
 export 'src/material/toggleable.dart';

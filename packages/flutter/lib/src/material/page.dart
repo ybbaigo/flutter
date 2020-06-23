@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/widgets.dart';
 
@@ -82,10 +84,10 @@ class MaterialPageRoute<T> extends PageRoute<T> {
     final Widget result = builder(context);
     assert(() {
       if (result == null) {
-        throw FlutterError.fromParts(<DiagnosticsNode>[
-          ErrorSummary('The builder for route "${settings.name}" returned null.'),
-          ErrorDescription('Route builders must never return null.')
-        ]);
+        throw FlutterError(
+          'The builder for route "${settings.name}" returned null.\n'
+          'Route builders must never return null.'
+        );
       }
       return true;
     }());

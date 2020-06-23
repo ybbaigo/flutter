@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,7 +49,7 @@ void main() {
 
     expect(topBeforeScroll.dy, equals(0.0));
     expect(topAfterScroll.dy, equals(0.0));
-  }, variant: const TargetPlatformVariant(<TargetPlatform>{ TargetPlatform.android, TargetPlatform.iOS,  TargetPlatform.macOS }));
+  }, variant: TargetPlatformVariant(TargetPlatform.values.where((TargetPlatform value) => value != TargetPlatform.fuchsia).toSet()));
 
   testWidgets('FlexibleSpaceBar collapse mode pin', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -85,7 +87,7 @@ void main() {
 
     expect(topBeforeScroll.dy, equals(0.0));
     expect(topAfterScroll.dy, equals(-100.0));
-  }, variant: const TargetPlatformVariant(<TargetPlatform>{ TargetPlatform.android, TargetPlatform.iOS,  TargetPlatform.macOS }));
+  }, variant: TargetPlatformVariant(TargetPlatform.values.where((TargetPlatform value) => value != TargetPlatform.fuchsia).toSet()));
 
   testWidgets('FlexibleSpaceBar collapse mode parallax', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -124,7 +126,7 @@ void main() {
     expect(topBeforeScroll.dy, equals(0.0));
     expect(topAfterScroll.dy, lessThan(10.0));
     expect(topAfterScroll.dy, greaterThan(-50.0));
-  }, variant: const TargetPlatformVariant(<TargetPlatform>{ TargetPlatform.android, TargetPlatform.iOS,  TargetPlatform.macOS }));
+  }, variant: TargetPlatformVariant(TargetPlatform.values.where((TargetPlatform value) => value != TargetPlatform.fuchsia).toSet()));
 }
 
 Future<void> slowDrag(WidgetTester tester, Key widget, Offset offset) async {

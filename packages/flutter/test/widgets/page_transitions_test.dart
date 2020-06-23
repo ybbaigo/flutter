@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
@@ -198,7 +200,7 @@ void main() {
     expect(settingsOffset.dy, 100.0);
   }, variant: const TargetPlatformVariant(<TargetPlatform>{ TargetPlatform.iOS,  TargetPlatform.macOS }));
 
-  testWidgets('Check back gesture doesn\'t start during transitions', (WidgetTester tester) async {
+  testWidgets("Check back gesture doesn't start during transitions", (WidgetTester tester) async {
     final GlobalKey containerKey1 = GlobalKey();
     final GlobalKey containerKey2 = GlobalKey();
     final Map<String, WidgetBuilder> routes = <String, WidgetBuilder>{

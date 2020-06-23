@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
@@ -90,6 +92,10 @@ class _TableElementRow {
 ///
 /// For more details about the table layout algorithm, see [RenderTable].
 /// To control the alignment of children, see [TableCell].
+///
+/// See also:
+///
+///  * The [catalog of layout widgets](https://flutter.dev/widgets/layout/).
 class Table extends RenderObjectWidget {
   /// Creates a table.
   ///
@@ -266,7 +272,7 @@ class _TableElement extends RenderObjectElement {
   }
 
   @override
-  void insertChildRenderObject(RenderObject child, Element slot) {
+  void insertChildRenderObject(RenderObject child, IndexedSlot<Element> slot) {
     renderObject.setupParentData(child);
   }
 
@@ -344,6 +350,7 @@ class _TableElement extends RenderObjectElement {
   @override
   bool forgetChild(Element child) {
     _forgottenChildren.add(child);
+    super.forgetChild(child);
     return true;
   }
 }

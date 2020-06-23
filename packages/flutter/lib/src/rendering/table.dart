@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:collection';
 import 'dart:math' as math;
 
@@ -992,6 +994,7 @@ class RenderTable extends RenderBox {
 
   @override
   void performLayout() {
+    final BoxConstraints constraints = this.constraints;
     final int rows = this.rows;
     final int columns = this.columns;
     assert(_children.length == rows * columns);

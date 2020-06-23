@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -46,6 +48,10 @@ class DataColumn {
   /// Typically, this will be a [Text] widget. It could also be an
   /// [Icon] (typically using size 18), or a [Row] with an icon and
   /// some text.
+  ///
+  /// By default, this widget will only occupy the minimal space. If you want
+  /// it to take the entire remaining space, e.g. when you want to use [Center],
+  /// you can wrap it with an [Expanded].
   ///
   /// The label should not include the sort indicator.
   final Widget label;
@@ -171,7 +177,7 @@ class DataCell {
   }) : assert(child != null);
 
   /// A cell that has no content and has zero width and height.
-  static final DataCell empty = DataCell(Container(width: 0.0, height: 0.0));
+  static const DataCell empty = DataCell(SizedBox(width: 0.0, height: 0.0));
 
   /// The data for the row.
   ///
@@ -225,7 +231,7 @@ class DataCell {
 /// [PaginatedDataTable] which automatically splits the data into
 /// multiple pages.
 ///
-/// {@tool sample --template=stateless_widget_scaffold}
+/// {@tool dartpad --template=stateless_widget_scaffold}
 ///
 /// This sample shows how to display a [DataTable] with three columns: name, age, and
 /// role. The columns are defined by three [DataColumn] objects. The table
@@ -285,7 +291,6 @@ class DataCell {
 /// ```
 ///
 /// {@end-tool}
-// TODO(ianh): Also suggest [ScrollingDataTable] once we have it.
 ///
 /// See also:
 ///
@@ -331,6 +336,7 @@ class DataTable extends StatelessWidget {
     this.horizontalMargin = 24.0,
     this.columnSpacing = 56.0,
     this.showCheckboxColumn = true,
+    this.dividerThickness = 1.0,
     @required this.rows,
   }) : assert(columns != null),
        assert(columns.isNotEmpty),
@@ -343,6 +349,7 @@ class DataTable extends StatelessWidget {
        assert(showCheckboxColumn != null),
        assert(rows != null),
        assert(!rows.any((DataRow row) => row.cells.length != columns.length)),
+       assert(dividerThickness != null && dividerThickness >= 0),
        _onlyTextColumn = _initOnlyTextColumn(columns),
        super(key: key);
 
@@ -467,6 +474,12 @@ class DataTable extends StatelessWidget {
   static const Color _grey100Opacity = Color(0x0A000000); // Grey 100 as opacity instead of solid color
   static const Color _grey300Opacity = Color(0x1E000000); // Dark theme variant is just a guess.
 
+  /// The width of the divider that appears between [TableRow]s.
+  ///
+  /// Must be non-null and greater than or equal to zero.
+  /// This value defaults to 1.0.
+  final double dividerThickness;
+
   Widget _buildCheckbox({
     Color color,
     bool checked,
@@ -508,25 +521,31 @@ class DataTable extends StatelessWidget {
     bool sorted,
     bool ascending,
   }) {
-    if (onSort != null) {
-      final Widget arrow = _SortArrow(
-        visible: sorted,
-        down: sorted ? ascending : null,
-        duration: _sortArrowAnimationDuration,
-      );
-      const Widget arrowPadding = SizedBox(width: _sortArrowPadding);
-      label = Row(
-        textDirection: numeric ? TextDirection.rtl : null,
-        children: <Widget>[ label, arrowPadding, arrow ],
-      );
+    List<Widget> arrowWithPadding() {
+      return onSort == null ? const <Widget>[] : <Widget>[
+        _SortArrow(
+          visible: sorted,
+          down: sorted ? ascending : null,
+          duration: _sortArrowAnimationDuration,
+        ),
+        const SizedBox(width: _sortArrowPadding),
+      ];
     }
+    label = Row(
+      textDirection: numeric ? TextDirection.rtl : null,
+      children: <Widget>[
+        label,
+        ...arrowWithPadding(),
+      ],
+    );
     label = Container(
       padding: padding,
       height: headingRowHeight,
       alignment: numeric ? Alignment.centerRight : AlignmentDirectional.centerStart,
       child: AnimatedDefaultTextStyle(
         style: TextStyle(
-          // TODO(ianh): font family should match Theme; see https://github.com/flutter/flutter/issues/3116
+          // TODO(hansmuller): This should use the information provided by
+          // textTheme/DataTableTheme, https://github.com/flutter/flutter/issues/56079
           fontWeight: FontWeight.w500,
           fontSize: _headingFontSize,
           height: math.min(1.0, headingRowHeight / _headingFontSize),
@@ -545,12 +564,12 @@ class DataTable extends StatelessWidget {
         child: label,
       );
     }
-    if (onSort != null) {
-      label = InkWell(
-        onTap: onSort,
-        child: label,
-      );
-    }
+    // TODO(dkwingsmt): Only wrap Inkwell if onSort != null. Blocked by
+    // https://github.com/flutter/flutter/issues/51152
+    label = InkWell(
+      onTap: onSort,
+      child: label,
+    );
     return label;
   }
 
@@ -579,7 +598,8 @@ class DataTable extends StatelessWidget {
       alignment: numeric ? Alignment.centerRight : AlignmentDirectional.centerStart,
       child: DefaultTextStyle(
         style: TextStyle(
-          // TODO(ianh): font family should be Roboto; see https://github.com/flutter/flutter/issues/3116
+          // TODO(hansmuller): This should use the information provided by
+          // textTheme/DataTableTheme, https://github.com/flutter/flutter/issues/56079
           fontSize: 13.0,
           color: isLightTheme
             ? (placeholder ? Colors.black38 : Colors.black87)
@@ -613,12 +633,12 @@ class DataTable extends StatelessWidget {
 
     final ThemeData theme = Theme.of(context);
     final BoxDecoration _kSelectedDecoration = BoxDecoration(
-      border: Border(bottom: Divider.createBorderSide(context, width: 1.0)),
+      border: Border(bottom: Divider.createBorderSide(context, width:  dividerThickness)),
       // The backgroundColor has to be transparent so you can see the ink on the material
       color: (Theme.of(context).brightness == Brightness.light) ? _grey100Opacity : _grey300Opacity,
     );
     final BoxDecoration _kUnselectedDecoration = BoxDecoration(
-      border: Border(bottom: Divider.createBorderSide(context, width: 1.0)),
+      border: Border(bottom: Divider.createBorderSide(context, width: dividerThickness)),
     );
 
     final bool displayCheckboxColumn = showCheckboxColumn && rows.any((DataRow row) => row.onSelectChanged != null);
@@ -694,7 +714,7 @@ class DataTable extends StatelessWidget {
         label: column.label,
         tooltip: column.tooltip,
         numeric: column.numeric,
-        onSort: () => column.onSort != null ? column.onSort(dataColumnIndex, sortColumnIndex != dataColumnIndex || !sortAscending) : null,
+        onSort: column.onSort != null ? () => column.onSort(dataColumnIndex, sortColumnIndex != dataColumnIndex || !sortAscending) : null,
         sorted: dataColumnIndex == sortColumnIndex,
         ascending: sortAscending,
       );

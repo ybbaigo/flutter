@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,7 +54,6 @@ void main() {
         matchesGoldenFile('localized_fonts.rich_text.styled_text_span.png'),
       );
     },
-    skip: isBrowser, // TODO(yjbanov): implement goldens on the Web: https://github.com/flutter/flutter/issues/40297
   );
 
   testWidgets(

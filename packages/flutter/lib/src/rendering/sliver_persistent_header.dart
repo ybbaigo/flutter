@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:math' as math;
 
 import 'package:flutter/animation.dart';
@@ -331,6 +333,7 @@ abstract class RenderSliverScrollingPersistentHeader extends RenderSliverPersist
 
   @override
   void performLayout() {
+    final SliverConstraints constraints = this.constraints;
     final double maxExtent = this.maxExtent;
     layoutChild(constraints.scrollOffset, maxExtent);
     final double paintExtent = maxExtent - constraints.scrollOffset;
@@ -369,6 +372,7 @@ abstract class RenderSliverPinnedPersistentHeader extends RenderSliverPersistent
 
   @override
   void performLayout() {
+    final SliverConstraints constraints = this.constraints;
     final double maxExtent = this.maxExtent;
     final bool overlapsContent = constraints.overlap > 0.0;
     excludeFromSemanticsScrolling = overlapsContent || (constraints.scrollOffset > maxExtent - minExtent);
@@ -552,6 +556,7 @@ abstract class RenderSliverFloatingPersistentHeader extends RenderSliverPersiste
 
   @override
   void performLayout() {
+    final SliverConstraints constraints = this.constraints;
     final double maxExtent = this.maxExtent;
     if (_lastActualScrollOffset != null && // We've laid out at least once to get an initial position, and either
         ((constraints.scrollOffset < _lastActualScrollOffset) || // we are scrolling back, so should reveal, or
@@ -639,7 +644,7 @@ abstract class RenderSliverFloatingPinnedPersistentHeader extends RenderSliverFl
       paintExtent: clampedPaintExtent,
       layoutExtent: layoutExtent.clamp(0.0, clampedPaintExtent) as double,
       maxPaintExtent: maxExtent + stretchOffset,
-      maxScrollObstructionExtent: maxExtent,
+      maxScrollObstructionExtent: minExtent,
       hasVisualOverflow: true, // Conservatively say we do have overflow to avoid complexity.
     );
     return 0.0;

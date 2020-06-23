@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -27,7 +29,7 @@ class ColorFiltered extends SingleChildRenderObjectWidget {
 
   @override
   void updateRenderObject(BuildContext context, _ColorFilterRenderObject renderObject) {
-    renderObject..colorFilter = colorFilter;
+    renderObject.colorFilter = colorFilter;
   }
 
   @override

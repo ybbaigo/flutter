@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// @dart = 2.8
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,55 +18,63 @@ void main() {
     }
   });
 
-  test('Typography on Android, Fuchsia defaults to Roboto', () {
+  test('Typography on non-Apple platforms defaults to the correct font', () {
     expect(Typography.material2018(platform: TargetPlatform.android).black.headline6.fontFamily, 'Roboto');
     expect(Typography.material2018(platform: TargetPlatform.fuchsia).black.headline6.fontFamily, 'Roboto');
+    expect(Typography.material2018(platform: TargetPlatform.linux).black.headline6.fontFamily, 'Roboto');
+    expect(Typography.material2018(platform: TargetPlatform.linux).black.headline6.fontFamilyFallback, <String>['Ubuntu', 'Cantarell', 'DejaVu Sans', 'Liberation Sans', 'Arial']);
+    expect(Typography.material2018(platform: TargetPlatform.windows).black.headline6.fontFamily, 'Segoe UI');
+    expect(Typography.material2018(platform: TargetPlatform.android).white.headline6.fontFamily, 'Roboto');
+    expect(Typography.material2018(platform: TargetPlatform.fuchsia).white.headline6.fontFamily, 'Roboto');
+    expect(Typography.material2018(platform: TargetPlatform.linux).white.headline6.fontFamily, 'Roboto');
+    expect(Typography.material2018(platform: TargetPlatform.linux).white.headline6.fontFamilyFallback, <String>['Ubuntu', 'Cantarell', 'DejaVu Sans', 'Liberation Sans', 'Arial']);
+    expect(Typography.material2018(platform: TargetPlatform.windows).white.headline6.fontFamily, 'Segoe UI');
   });
 
   // Ref: https://developer.apple.com/ios/human-interface-guidelines/visual-design/typography/
-  final Matcher isDisplayFont = predicate((TextStyle s) {
+  final Matcher isSanFranciscoDisplayFont = predicate((TextStyle s) {
     return s.fontFamily == '.SF UI Display';
   }, 'Uses SF Display font');
 
-  final Matcher isTextFont = predicate((TextStyle s) {
+  final Matcher isSanFranciscoTextFont = predicate((TextStyle s) {
     return s.fontFamily == '.SF UI Text';
   }, 'Uses SF Text font');
 
   test('Typography on iOS defaults to the correct SF font family based on size', () {
     final Typography typography = Typography.material2018(platform: TargetPlatform.iOS);
     for (final TextTheme textTheme in <TextTheme>[typography.black, typography.white]) {
-      expect(textTheme.headline1, isDisplayFont);
-      expect(textTheme.headline2, isDisplayFont);
-      expect(textTheme.headline3, isDisplayFont);
-      expect(textTheme.headline4, isDisplayFont);
-      expect(textTheme.headline5, isDisplayFont);
-      expect(textTheme.headline6, isDisplayFont);
-      expect(textTheme.subtitle1, isTextFont);
-      expect(textTheme.bodyText1, isTextFont);
-      expect(textTheme.bodyText2, isTextFont);
-      expect(textTheme.caption, isTextFont);
-      expect(textTheme.button, isTextFont);
-      expect(textTheme.subtitle2, isTextFont);
-      expect(textTheme.overline, isTextFont);
+      expect(textTheme.headline1, isSanFranciscoDisplayFont);
+      expect(textTheme.headline2, isSanFranciscoDisplayFont);
+      expect(textTheme.headline3, isSanFranciscoDisplayFont);
+      expect(textTheme.headline4, isSanFranciscoDisplayFont);
+      expect(textTheme.headline5, isSanFranciscoDisplayFont);
+      expect(textTheme.headline6, isSanFranciscoDisplayFont);
+      expect(textTheme.subtitle1, isSanFranciscoTextFont);
+      expect(textTheme.bodyText1, isSanFranciscoTextFont);
+      expect(textTheme.bodyText2, isSanFranciscoTextFont);
+      expect(textTheme.caption, isSanFranciscoTextFont);
+      expect(textTheme.button, isSanFranciscoTextFont);
+      expect(textTheme.subtitle2, isSanFranciscoTextFont);
+      expect(textTheme.overline, isSanFranciscoTextFont);
     }
   });
 
   test('Typography on macOS defaults to the correct SF font family based on size', () {
     final Typography typography = Typography.material2018(platform: TargetPlatform.macOS);
     for (final TextTheme textTheme in <TextTheme>[typography.black, typography.white]) {
-      expect(textTheme.headline1, isDisplayFont);
-      expect(textTheme.headline2, isDisplayFont);
-      expect(textTheme.headline3, isDisplayFont);
-      expect(textTheme.headline4, isDisplayFont);
-      expect(textTheme.headline5, isDisplayFont);
-      expect(textTheme.headline6, isDisplayFont);
-      expect(textTheme.subtitle1, isTextFont);
-      expect(textTheme.bodyText1, isTextFont);
-      expect(textTheme.bodyText2, isTextFont);
-      expect(textTheme.caption, isTextFont);
-      expect(textTheme.button, isTextFont);
-      expect(textTheme.subtitle2, isTextFont);
-      expect(textTheme.overline, isTextFont);
+      expect(textTheme.headline1, isSanFranciscoDisplayFont);
+      expect(textTheme.headline2, isSanFranciscoDisplayFont);
+      expect(textTheme.headline3, isSanFranciscoDisplayFont);
+      expect(textTheme.headline4, isSanFranciscoDisplayFont);
+      expect(textTheme.headline5, isSanFranciscoDisplayFont);
+      expect(textTheme.headline6, isSanFranciscoDisplayFont);
+      expect(textTheme.subtitle1, isSanFranciscoTextFont);
+      expect(textTheme.bodyText1, isSanFranciscoTextFont);
+      expect(textTheme.bodyText2, isSanFranciscoTextFont);
+      expect(textTheme.caption, isSanFranciscoTextFont);
+      expect(textTheme.button, isSanFranciscoTextFont);
+      expect(textTheme.subtitle2, isSanFranciscoTextFont);
+      expect(textTheme.overline, isSanFranciscoTextFont);
     }
   });
 
@@ -146,23 +156,20 @@ void main() {
     // Body1 Roboto regular 16 0.5
     expect(theme.bodyText1.fontFamily, 'Roboto');
     expect(theme.bodyText1.fontWeight, regular);
-    // TODO(hansmuller): restore after englishLike2018 has been updated per #38904.
-    //expect(theme.bodyText1.fontSize, 16);
-    //expect(theme.bodyText1.letterSpacing, 0.5);
+    expect(theme.bodyText1.fontSize, 16);
+    expect(theme.bodyText1.letterSpacing, 0.5);
 
     // Body2 Roboto regular 14 0.25
     expect(theme.bodyText2.fontFamily, 'Roboto');
     expect(theme.bodyText2.fontWeight, regular);
-    // TODO(hansmuller): restore after englishLike2018 has been updated per #38904.
-    //expect(theme.bodyText2.fontSize, 14);
-    //expect(theme.bodyText2.letterSpacing, 0.25);
+    expect(theme.bodyText2.fontSize, 14);
+    expect(theme.bodyText2.letterSpacing, 0.25);
 
     // BUTTON Roboto medium 14 1.25
     expect(theme.button.fontFamily, 'Roboto');
     expect(theme.button.fontWeight, medium);
     expect(theme.button.fontSize, 14);
-    // TODO(hansmuller): restore after englishLike2018 has been updated, per #38904.
-    //expect(theme.button.letterSpacing, 1.25);
+    expect(theme.button.letterSpacing, 1.25);
 
     // Caption Roboto regular 12 0.4
     expect(theme.caption.fontFamily, 'Roboto');
