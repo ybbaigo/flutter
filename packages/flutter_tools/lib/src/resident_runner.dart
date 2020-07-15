@@ -26,7 +26,6 @@ import 'bundle.dart';
 import 'cache.dart';
 import 'codegen.dart';
 import 'compile.dart';
-import 'dart/package_map.dart';
 import 'devfs.dart';
 import 'device.dart';
 import 'features.dart';
@@ -60,7 +59,7 @@ class FlutterDevice {
          fileSystemScheme: fileSystemScheme,
          targetModel: targetModel,
          dartDefines: buildInfo.dartDefines,
-         packagesPath: globalPackagesPath,
+         packagesPath: buildInfo.packagesPath,
          extraFrontEndOptions: buildInfo.extraFrontEndOptions,
          artifacts: globals.artifacts,
          processManager: globals.processManager,
@@ -93,6 +92,20 @@ class FlutterDevice {
     // a warning message and dump some debug information which can be
     // used to file a bug, but the compiler will still start up correctly.
     if (targetPlatform == TargetPlatform.web_javascript) {
+      Artifact platformDillArtifact;
+      List<String> extraFrontEndOptions;
+      if (buildInfo.nullSafetyMode == NullSafetyMode.unsound) {
+        platformDillArtifact = Artifact.webPlatformKernelDill;
+        extraFrontEndOptions = buildInfo.extraFrontEndOptions;
+      } else {
+        platformDillArtifact = Artifact.webPlatformSoundKernelDill;
+        extraFrontEndOptions = <String>[
+          ...?buildInfo?.extraFrontEndOptions,
+          if (!(buildInfo?.extraFrontEndOptions?.contains('--sound-null-safety') ?? false))
+            '--sound-null-safety'
+        ];
+      }
+
       generator = ResidentCompiler(
         globals.artifacts.getArtifactPath(Artifact.flutterWebSdk, mode: buildInfo.mode),
         buildMode: buildInfo.mode,
@@ -104,16 +117,17 @@ class FlutterDevice {
         initializeFromDill: getDefaultCachedKernelPath(
           trackWidgetCreation: buildInfo.trackWidgetCreation,
           dartDefines: buildInfo.dartDefines,
+          extraFrontEndOptions: extraFrontEndOptions
         ),
         targetModel: TargetModel.dartdevc,
-        extraFrontEndOptions: buildInfo.extraFrontEndOptions,
+        extraFrontEndOptions: extraFrontEndOptions,
         platformDill: globals.fs.file(globals.artifacts
-          .getArtifactPath(Artifact.webPlatformKernelDill, mode: buildInfo.mode))
+          .getArtifactPath(platformDillArtifact, mode: buildInfo.mode))
           .absolute.uri.toString(),
         dartDefines: buildInfo.dartDefines,
         librariesSpec: globals.fs.file(globals.artifacts
           .getArtifactPath(Artifact.flutterWebLibrariesJson)).uri.toString(),
-        packagesPath: globalPackagesPath,
+        packagesPath: buildInfo.packagesPath,
         artifacts: globals.artifacts,
         processManager: globals.processManager,
         logger: globals.logger,
@@ -135,8 +149,9 @@ class FlutterDevice {
         initializeFromDill: getDefaultCachedKernelPath(
           trackWidgetCreation: buildInfo.trackWidgetCreation,
           dartDefines: buildInfo.dartDefines,
+          extraFrontEndOptions: buildInfo.extraFrontEndOptions,
         ),
-        packagesPath: globalPackagesPath,
+        packagesPath: buildInfo.packagesPath,
         artifacts: globals.artifacts,
         processManager: globals.processManager,
         logger: globals.logger,
@@ -421,6 +436,15 @@ class FlutterDevice {
     }
   }
 
+  Future<void> toggleInvertOversizedImages() async {
+    final List<FlutterView> views = await vmService.getFlutterViews();
+    for (final FlutterView view in views) {
+      await vmService.flutterToggleInvertOversizedImages(
+        isolateId: view.uiIsolate.id,
+      );
+    }
+  }
+
   Future<void> toggleProfileWidgetBuilds() async {
     final List<FlutterView> views = await vmService.getFlutterViews();
     for (final FlutterView view in views) {
@@ -683,16 +707,15 @@ abstract class ResidentRunner {
   ResidentRunner(
     this.flutterDevices, {
     this.target,
-    this.debuggingOptions,
+    @required this.debuggingOptions,
     String projectRootPath,
-    String packagesFilePath,
     this.ipv6,
     this.stayResident = true,
     this.hotMode = true,
     String dillOutputPath,
   }) : mainPath = findMainDartFile(target),
+       packagesFilePath = debuggingOptions.buildInfo.packagesPath,
        projectRootPath = projectRootPath ?? globals.fs.currentDirectory.path,
-       packagesFilePath = packagesFilePath ?? globals.fs.path.absolute(globalPackagesPath),
        _dillOutputPath = dillOutputPath,
        artifactDirectory = dillOutputPath == null
           ? globals.fs.systemTempDirectory.createTempSync('flutter_tool.')
@@ -995,6 +1018,12 @@ abstract class ResidentRunner {
     }
   }
 
+  Future<void> debugToggleInvertOversizedImages() async {
+    for (final FlutterDevice device in flutterDevices) {
+      await device.toggleInvertOversizedImages();
+    }
+  }
+
   Future<void> debugToggleProfileWidgetBuilds() async {
     for (final FlutterDevice device in flutterDevices) {
       await device.toggleProfileWidgetBuilds();
@@ -1109,6 +1138,7 @@ abstract class ResidentRunner {
       final String copyPath = getDefaultCachedKernelPath(
         trackWidgetCreation: trackWidgetCreation,
         dartDefines: debuggingOptions.buildInfo.dartDefines,
+        extraFrontEndOptions: debuggingOptions.buildInfo.extraFrontEndOptions,
       );
       globals.fs
           .file(copyPath)
@@ -1228,6 +1258,12 @@ abstract class ResidentRunner {
     _finished.complete(0);
   }
 
+  void appFailedToStart() {
+    if (!_finished.isCompleted) {
+      _finished.complete(1);
+    }
+  }
+
   Future<int> waitForAppToFinish() async {
     final int exitCode = await _finished.future;
     assert(exitCode != null);
@@ -1268,6 +1304,7 @@ abstract class ResidentRunner {
         commandHelp.S.print();
         commandHelp.U.print();
         commandHelp.i.print();
+        commandHelp.I.print();
         commandHelp.p.print();
         commandHelp.o.print();
         commandHelp.z.print();
@@ -1422,9 +1459,14 @@ class TerminalHandler {
         residentRunner.printHelp(details: true);
         return true;
       case 'i':
-      case 'I':
         if (residentRunner.supportsServiceProtocol) {
           await residentRunner.debugToggleWidgetInspector();
+          return true;
+        }
+        return false;
+      case 'I':
+        if (residentRunner.supportsServiceProtocol && residentRunner.isRunningDebug) {
+          await residentRunner.debugToggleInvertOversizedImages();
           return true;
         }
         return false;
@@ -1478,13 +1520,6 @@ class TerminalHandler {
         // exit
         await residentRunner.exit();
         return true;
-      case 's':
-        for (final FlutterDevice device in residentRunner.flutterDevices) {
-          if (device.device.supportsScreenshot) {
-            await residentRunner.screenshot(device);
-          }
-        }
-        return true;
       case 'r':
         if (!residentRunner.canHotReload) {
           return false;
@@ -1508,6 +1543,13 @@ class TerminalHandler {
         }
         if (!result.isOk) {
           globals.printStatus('Try again after fixing the above error(s).', emphasis: true);
+        }
+        return true;
+      case 's':
+        for (final FlutterDevice device in residentRunner.flutterDevices) {
+          if (device.device.supportsScreenshot) {
+            await residentRunner.screenshot(device);
+          }
         }
         return true;
       case 'S':

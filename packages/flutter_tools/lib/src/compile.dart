@@ -310,14 +310,7 @@ class KernelCompiler {
         '--platform',
         platformDill,
       ],
-      if (extraFrontEndOptions != null)
-        for (String arg in extraFrontEndOptions)
-          if (arg == '--sound-null-safety')
-            '--null-safety'
-          else if (arg == '--no-sound-null-safety')
-            '--no-null-safety'
-          else
-            arg,
+      ...?extraFrontEndOptions,
       mainUri?.toString() ?? mainPath,
     ];
 
@@ -689,6 +682,10 @@ class DefaultResidentCompiler implements ResidentCompiler {
       // in the frontend_server.
       // https://github.com/flutter/flutter/issues/52693
       '--debugger-module-names',
+      // TODO(annagrin): remove once this becomes the default behavior
+      // in the frontend_server.
+      // https://github.com/flutter/flutter/issues/59902
+      '--experimental-emit-debug-metadata',
       '-Ddart.developer.causal_async_stacks=${buildMode == BuildMode.debug}',
       for (final Object dartDefine in dartDefines)
         '-D$dartDefine',
@@ -724,14 +721,7 @@ class DefaultResidentCompiler implements ResidentCompiler {
         platformDill,
       ],
       if (unsafePackageSerialization == true) '--unsafe-package-serialization',
-      if (extraFrontEndOptions != null)
-        for (String arg in extraFrontEndOptions)
-          if (arg == '--sound-null-safety')
-            '--null-safety'
-          else if (arg == '--no-sound-null-safety')
-            '--no-null-safety'
-          else
-            arg,
+      ...?extraFrontEndOptions,
     ];
     _logger.printTrace(command.join(' '));
     _server = await _processManager.start(command);

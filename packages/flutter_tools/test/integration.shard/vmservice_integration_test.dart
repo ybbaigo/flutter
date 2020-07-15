@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
 import 'dart:io'; // ignore: dart_io_import
 
 import 'package:file/file.dart';
@@ -89,7 +90,7 @@ void main() {
     });
 
     test('ext.flutter.brightnessOverride can toggle window brightness', () async {
-      final IsolateRef isolate = (await vmService.getVM()).isolates.first;
+      final Isolate isolate = await waitForExtension(vmService);
       final Response response = await vmService.callServiceExtension(
         'ext.flutter.brightnessOverride',
         isolateId: isolate.id,

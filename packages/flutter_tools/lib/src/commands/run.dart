@@ -374,6 +374,7 @@ class RunCommand extends RunCommandBase {
         hostname: featureFlags.isWebEnabled ? stringArg('web-hostname') : '',
         port: featureFlags.isWebEnabled ? stringArg('web-port') : '',
         webUseSseForDebugProxy: featureFlags.isWebEnabled && stringArg('web-server-debug-protocol') == 'sse',
+        webUseSseForDebugBackend: featureFlags.isWebEnabled && stringArg('web-server-debug-backend-protocol') == 'sse',
         webEnableExposeUrl: featureFlags.isWebEnabled && boolArg('web-allow-expose-url'),
         webRunHeadless: featureFlags.isWebEnabled && boolArg('web-run-headless'),
         webBrowserDebugPort: browserDebugPort,
@@ -400,6 +401,7 @@ class RunCommand extends RunCommandBase {
         hostname: featureFlags.isWebEnabled ? stringArg('web-hostname') : '',
         port: featureFlags.isWebEnabled ? stringArg('web-port') : '',
         webUseSseForDebugProxy: featureFlags.isWebEnabled && stringArg('web-server-debug-protocol') == 'sse',
+        webUseSseForDebugBackend: featureFlags.isWebEnabled && stringArg('web-server-debug-backend-protocol') == 'sse',
         webEnableExposeUrl: featureFlags.isWebEnabled && boolArg('web-allow-expose-url'),
         webRunHeadless: featureFlags.isWebEnabled && boolArg('web-run-headless'),
         webBrowserDebugPort: browserDebugPort,
@@ -536,7 +538,6 @@ class RunCommand extends RunCommandBase {
             ? null
             : globals.fs.file(applicationBinaryPath),
         projectRootPath: stringArg('project-root'),
-        packagesFilePath: globalResults['packages'] as String,
         dillOutputPath: stringArg('output-dill'),
         stayResident: stayResident,
         ipv6: ipv6,
